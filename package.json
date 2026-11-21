@@ -1,0 +1,42 @@
+{
+  "name": "shift-digest",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.12"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "build:batch": "esbuild src/batch/main.ts --bundle --platform=node --format=esm --target=node22 --outfile=dist/batch/main.mjs --log-level=warning \"--banner:js=import { createRequire as __cr } from 'module'; const require = __cr(import.meta.url);\"",
+    "batch": "npm run build:batch && node --env-file-if-exists=.env dist/batch/main.mjs",
+    "batch:offline": "node scripts/make-offline-feeds.mjs && npm run build:batch && node --env-file-if-exists=.env dist/batch/main.mjs --sources config/sources.offline.json",
+    "seed:sample": "node scripts/seed-sample.mjs",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "check": "npm run lint && npm run typecheck && npm run test"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.12.0",
+    "@azure/identity": "^4.14.1",
+    "@azure/storage-blob": "^12.34.0",
+    "fast-xml-parser": "^5.12.1",
+    "next": "^16.4.6",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.2",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "esbuild": "^0.28.2",
+    "eslint": "^10.15.0",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.73.0",
+    "vitest": "^5.1.1"
+  }
+}

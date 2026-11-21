@@ -1,0 +1,5 @@
+# terraform.tfvars にコピーして値を入れる（terraform.tfvars は git 管理外）
+subscription_id   = "00000000-0000-0000-0000-000000000000"
+location          = "japaneast"
+name_prefix       = "shiftdg"
+github_repository = "mtg-koki/shift-digest"

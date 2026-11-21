@@ -1,0 +1,17 @@
+.git
+.github
+node_modules
+.next
+dist
+data
+sample-data/**/*.tmp
+infra
+.env
+.env.*
+!.env.example
+.offline-feeds
+.tmp*
+*.log
+*.tfstate*
+*.tfplan
+README.md

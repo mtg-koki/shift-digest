@@ -1,0 +1,33 @@
+node_modules/
+.next/
+dist/
+next-env.d.ts
+*.tsbuildinfo
+
+# ローカルデータ・検証用出力
+data/
+.offline-feeds/
+.tmp*/
+.tmp*
+*.log
+
+# 秘密情報
+.env
+.env.*
+!.env.example
+
+# Terraform（state・plan・変数値は絶対にコミットしない）
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+*.tfplan
+tfplan
+crash.log
+*.tfvars
+!*.tfvars.example
+!infra/app/release.auto.tfvars
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+backend.hcl

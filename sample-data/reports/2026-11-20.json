@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-11-20",
+  "generatedAt": "2026-11-19T22:00:41.000Z",
+  "status": "ok",
+  "articles": [
+    {
+      "id": "a1b2c3d4e5f60001",
+      "titleJa": "【サンプル】生成AIの業務利用ガイドラインを公表",
+      "summaryJa": "架空の官公庁が生成AIの業務利用に関するガイドラインを公表したという想定のサンプル記事です。実在のニュースではありません。",
+      "category": "tech",
+      "originalTitle": "[Sample] 生成AIの業務利用ガイドラインを公表",
+      "sourceId": "sample-a",
+      "sourceName": "サンプル官公庁",
+      "url": "https://example.com/news/ai-guideline",
+      "publishedAt": "2026-11-19T06:00:00.000Z",
+      "fetchedAt": "2026-11-19T22:00:12.000Z",
+      "contentBasis": "rss_description",
+      "inputTruncated": false,
+      "summarizer": {
+        "provider": "mock",
+        "model": null
+      }
+    },
+    {
+      "id": "a1b2c3d4e5f60002",
+      "titleJa": "【サンプル】テレワーク実態調査の結果を公表",
+      "summaryJa": "架空の調査結果を公表したという想定のサンプル記事です。表示確認用の文章で、数値は含みません。",
+      "category": "employment",
+      "originalTitle": "[Sample] テレワーク実態調査の結果を公表",
+      "sourceId": "sample-a",
+      "sourceName": "サンプル官公庁",
+      "url": "https://example.com/news/telework-survey",
+      "publishedAt": "2026-11-19T03:00:00.000Z",
+      "fetchedAt": "2026-11-19T22:00:12.000Z",
+      "contentBasis": "rss_description",
+      "inputTruncated": false,
+      "summarizer": {
+        "provider": "mock",
+        "model": null
+      }
+    }
+  ],
+  "sources": [
+    {
+      "id": "sample-a",
+      "name": "サンプル官公庁",
+      "ok": true,
+      "itemCount": 3
+    },
+    {
+      "id": "sample-b",
+      "name": "サンプル技術ブログ",
+      "ok": true,
+      "itemCount": 2
+    }
+  ],
+  "stats": {
+    "fetchedItems": 5,
+    "candidates": 2,
+    "usage": {
+      "aiCalls": 0,
+      "inputTokens": 0,
+      "outputTokens": 0
+    }
+  }
+}

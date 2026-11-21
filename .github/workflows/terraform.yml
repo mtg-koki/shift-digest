@@ -1,0 +1,99 @@
+# Terraform plan / apply（手動実行のみ。自動 apply はしない）。
+# - plan : GitHub Environment "plan"（読み取り権限の ID）
+# - apply: GitHub Environment "production"（必須レビュアーの承認後に実行。書き込み権限の ID）
+# plan ファイルは公開リポジトリのアーティファクトに出さない。apply ジョブは承認後に再度 plan を作り、
+# その plan ファイルをそのまま apply する（ランナー内のみで完結）。
+# 注意: 公開リポジトリではワークフローログは誰でも閲覧できる。plan 出力にはリソース名等が表示される
+# （秘密値は Terraform 変数として渡していない／sensitive はマスクされる）。
+name: Terraform
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: plan or apply
+        type: choice
+        options: [plan, apply]
+        default: plan
+
+permissions:
+  contents: read
+  id-token: write # OIDC
+
+concurrency:
+  group: terraform-app
+  cancel-in-progress: false
+
+env:
+  TF_IN_AUTOMATION: "true"
+  ARM_USE_OIDC: "true"
+  ARM_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+  ARM_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+  TF_VAR_subscription_id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+  TF_VAR_app_resource_group_name: ${{ vars.APP_RESOURCE_GROUP }}
+  TF_VAR_name_prefix: ${{ vars.NAME_PREFIX }}
+  TF_VAR_image_namespace: ${{ vars.IMAGE_NAMESPACE }}
+  TF_VAR_ai_provider: ${{ vars.AI_PROVIDER || 'mock' }}
+  TF_VAR_ai_model: ${{ vars.AI_MODEL }}
+  # 個人のメールアドレスはリポジトリに書かず、Environment secret から JSON 配列で渡す（例: ["a@example.com"]）
+  TF_VAR_budget_contact_emails: ${{ secrets.BUDGET_CONTACT_EMAILS || '[]' }}
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    environment: plan
+    env:
+      ARM_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: 1.17.2
+      - name: Check that the images exist in GHCR
+        run: |
+          tag=$(sed -nE 's/^image_tag *= *"([0-9a-f]{40})".*/\1/p' infra/app/release.auto.tfvars)
+          [ -n "$tag" ] || { echo "image_tag not found"; exit 1; }
+          for t in web batch; do
+            docker manifest inspect "ghcr.io/${{ vars.IMAGE_NAMESPACE }}/shift-digest-$t:$tag" > /dev/null \
+              || { echo "::error::image shift-digest-$t:$tag not found (or not public). Run 'Publish images' first."; exit 1; }
+          done
+      - name: Init
+        run: >
+          terraform -chdir=infra/app init -input=false -lockfile=readonly
+          -backend-config="resource_group_name=${{ vars.TFSTATE_RESOURCE_GROUP }}"
+          -backend-config="storage_account_name=${{ vars.TFSTATE_STORAGE_ACCOUNT }}"
+          -backend-config="container_name=tfstate"
+          -backend-config="key=app.tfstate"
+          -backend-config="use_azuread_auth=true"
+          -backend-config="use_oidc=true"
+      - name: Plan
+        run: terraform -chdir=infra/app plan -input=false -lock-timeout=5m -no-color
+
+  apply:
+    if: inputs.action == 'apply'
+    needs: plan
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      ARM_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: 1.17.2
+      - name: Init
+        run: >
+          terraform -chdir=infra/app init -input=false -lockfile=readonly
+          -backend-config="resource_group_name=${{ vars.TFSTATE_RESOURCE_GROUP }}"
+          -backend-config="storage_account_name=${{ vars.TFSTATE_STORAGE_ACCOUNT }}"
+          -backend-config="container_name=tfstate"
+          -backend-config="key=app.tfstate"
+          -backend-config="use_azuread_auth=true"
+          -backend-config="use_oidc=true"
+      - name: Plan (re-created after approval; stays inside the runner)
+        run: terraform -chdir=infra/app plan -input=false -lock-timeout=5m -no-color -out="$RUNNER_TEMP/tfplan"
+      - name: Apply
+        run: terraform -chdir=infra/app apply -input=false -lock-timeout=5m -no-color "$RUNNER_TEMP/tfplan"
+      - name: Remove plan file
+        if: always()
+        run: rm -f "$RUNNER_TEMP/tfplan"

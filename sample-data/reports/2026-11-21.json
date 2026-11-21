@@ -1,0 +1,92 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-11-21",
+  "generatedAt": "2026-11-20T22:00:37.000Z",
+  "status": "partial",
+  "articles": [
+    {
+      "id": "a1b2c3d4e5f60003",
+      "titleJa": "【サンプル】著作権制度に関する意見募集を開始",
+      "summaryJa": "架空の機関が著作権制度に関する意見募集を開始したという想定のサンプル記事です。",
+      "category": "policy",
+      "originalTitle": "[Sample] 著作権制度に関する意見募集を開始",
+      "sourceId": "sample-a",
+      "sourceName": "サンプル官公庁",
+      "url": "https://example.com/news/copyright-comment",
+      "publishedAt": "2026-11-20T08:00:00.000Z",
+      "fetchedAt": "2026-11-20T22:00:10.000Z",
+      "contentBasis": "rss_description",
+      "inputTruncated": false,
+      "summarizer": {
+        "provider": "mock",
+        "model": null
+      }
+    },
+    {
+      "id": "a1b2c3d4e5f60004",
+      "titleJa": "【サンプル】クラウド計算資源の新プランを発表",
+      "summaryJa": "架空の事業者が計算資源の新しい提供形態を発表したという想定のサンプル記事です。",
+      "category": "ownership",
+      "originalTitle": "[Sample] クラウド計算資源の新プランを発表",
+      "sourceId": "sample-b",
+      "sourceName": "サンプル技術ブログ",
+      "url": "https://example.com/blog/compute-plan",
+      "publishedAt": null,
+      "fetchedAt": "2026-11-20T22:00:11.000Z",
+      "contentBasis": "rss_description",
+      "inputTruncated": false,
+      "summarizer": {
+        "provider": "mock",
+        "model": null
+      }
+    },
+    {
+      "id": "a1b2c3d4e5f60005",
+      "titleJa": "【サンプル】ロボット導入事例の紹介記事",
+      "summaryJa": "RSSに説明文がなく、タイトルのみから作成したという想定のサンプルです。本文の内容には触れていません。",
+      "category": "tech",
+      "originalTitle": "[Sample] ロボット導入事例の紹介記事",
+      "sourceId": "sample-b",
+      "sourceName": "サンプル技術ブログ",
+      "url": "https://example.com/blog/robot-case",
+      "publishedAt": "2026-11-20T01:30:00.000Z",
+      "fetchedAt": "2026-11-20T22:00:11.000Z",
+      "contentBasis": "title_only",
+      "inputTruncated": false,
+      "summarizer": {
+        "provider": "mock",
+        "model": null
+      }
+    }
+  ],
+  "sources": [
+    {
+      "id": "sample-a",
+      "name": "サンプル官公庁",
+      "ok": true,
+      "itemCount": 3
+    },
+    {
+      "id": "sample-b",
+      "name": "サンプル技術ブログ",
+      "ok": true,
+      "itemCount": 2
+    },
+    {
+      "id": "sample-c",
+      "name": "サンプル海外ニュース",
+      "ok": false,
+      "itemCount": 0,
+      "error": "HTTP 503"
+    }
+  ],
+  "stats": {
+    "fetchedItems": 5,
+    "candidates": 3,
+    "usage": {
+      "aiCalls": 0,
+      "inputTokens": 0,
+      "outputTokens": 0
+    }
+  }
+}

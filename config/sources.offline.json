@@ -1,0 +1,26 @@
+{
+  "sources": [
+    {
+      "id": "offline-rss",
+      "name": "オフライン検証用RSS（架空）",
+      "url": "file:.offline-feeds/rss2.xml",
+      "defaultCategory": "tech",
+      "priority": 1,
+      "official": true
+    },
+    {
+      "id": "offline-atom",
+      "name": "オフライン検証用Atom（架空）",
+      "url": "file:.offline-feeds/atom.xml",
+      "defaultCategory": "policy",
+      "priority": 2
+    },
+    {
+      "id": "offline-broken",
+      "name": "オフライン検証用（存在しないファイル）",
+      "url": "file:.offline-feeds/missing.xml",
+      "defaultCategory": "employment",
+      "priority": 3
+    }
+  ]
+}

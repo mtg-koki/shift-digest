@@ -1,0 +1,81 @@
+{
+  "sources": [
+    {
+      "id": "mhlw",
+      "name": "厚生労働省 新着情報",
+      "url": "https://www.mhlw.go.jp/stf/news.rdf",
+      "enabled": true,
+      "defaultCategory": "employment",
+      "priority": 1,
+      "official": true,
+      "allowFullText": false,
+      "termsNote": "2026-11-21 にフィード応答（RSS 1.0）を確認。RSSの説明文のみ使用し、本文は取得しない。サイト利用規約の確認は未了。"
+    },
+    {
+      "id": "meti",
+      "name": "経済産業省 ニュースリリース",
+      "url": "https://www.meti.go.jp/ml_index_release_atom.xml",
+      "enabled": true,
+      "defaultCategory": "policy",
+      "priority": 1,
+      "official": true,
+      "allowFullText": false,
+      "termsNote": "2026-11-21 にフィード応答（Atom）を確認。RSSの説明文のみ使用。サイト利用規約の確認は未了。"
+    },
+    {
+      "id": "digital",
+      "name": "デジタル庁 ニュース",
+      "url": "https://www.digital.go.jp/rss/news.xml",
+      "enabled": true,
+      "defaultCategory": "policy",
+      "priority": 1,
+      "official": true,
+      "allowFullText": false,
+      "termsNote": "2026-11-21 にフィード応答（RSS 2.0）を確認。RSSの説明文のみ使用。サイト利用規約の確認は未了。"
+    },
+    {
+      "id": "soumu",
+      "name": "総務省 報道資料",
+      "url": "https://www.soumu.go.jp/news.rdf",
+      "enabled": true,
+      "defaultCategory": "policy",
+      "priority": 1,
+      "official": true,
+      "allowFullText": false,
+      "termsNote": "2026-11-21 にフィード応答（RSS 1.0, Shift_JIS）を確認。RSSの説明文のみ使用。サイト利用規約の確認は未了。"
+    },
+    {
+      "id": "openai",
+      "name": "OpenAI News",
+      "url": "https://openai.com/news/rss.xml",
+      "enabled": true,
+      "defaultCategory": "tech",
+      "priority": 2,
+      "official": true,
+      "allowFullText": false,
+      "termsNote": "2026-11-21 にフィード応答（RSS 2.0）を確認。企業の一次発表。RSSの説明文のみ使用。"
+    },
+    {
+      "id": "google-ai",
+      "name": "Google The Keyword（AI）",
+      "url": "https://blog.google/technology/ai/rss/",
+      "enabled": true,
+      "defaultCategory": "tech",
+      "priority": 2,
+      "official": true,
+      "allowFullText": false,
+      "termsNote": "2026-11-21 にフィード応答（RSS 2.0）を確認。企業の一次発表。RSSの説明文のみ使用。"
+    },
+    {
+      "id": "github-blog",
+      "name": "GitHub Blog",
+      "url": "https://github.blog/feed/",
+      "enabled": false,
+      "defaultCategory": "tech",
+      "priority": 3,
+      "official": true,
+      "allowFullText": false,
+      "termsNote": "2026-11-21 にフィード応答（RSS 2.0）を確認。件数が多いため初期状態は無効。"
+    }
+  ]
+}

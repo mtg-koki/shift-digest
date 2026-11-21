@@ -1,0 +1,13 @@
+# terraform.tfvars にコピーして値を入れる（terraform.tfvars は git 管理外）。
+# image_tag は release.auto.tfvars（git 管理）で管理する。
+subscription_id         = "00000000-0000-0000-0000-000000000000"
+app_resource_group_name = "rg-shiftdg-app"
+name_prefix             = "shiftdg"
+
+# AI は最初は mock。本番プロバイダーは認証情報・利用可能モデルを確認してから設定する
+ai_provider = "mock"
+ai_model    = ""
+
+# 予算通知（任意）
+# budget_contact_emails = ["you@example.com"]
+# budget_amount         = 500

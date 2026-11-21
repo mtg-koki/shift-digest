@@ -1,0 +1,6 @@
+# ブートストラップ自身の state をリモートへ移す場合のみ、これを backend.tf にコピーして
+#   terraform init -migrate-state -backend-config=../app/backend.hcl -backend-config="key=bootstrap.tfstate"
+# を実行する（README「state の移行」参照）。
+terraform {
+  backend "azurerm" {}
+}
