@@ -1,15 +1,12 @@
-import { ReportPage, parseCategory } from "../src/web/components/views";
-import { getReader } from "../src/web/reader";
+import { Suspense } from "react";
+import { DigestApp, Loading } from "../src/web/components/digest-app";
 
-// Blob のデータをリクエスト時に読む（ビルド時に固定しない）。日次更新で再デプロイ不要。
-export const dynamic = "force-dynamic";
-
-export default async function Home({
-  searchParams,
-}: {
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
-}) {
-  const sp = await searchParams;
-  const view = await getReader().latest();
-  return <ReportPage view={view} category={parseCategory(sp.category)} basePath="/" />;
+// 静的エクスポートされる唯一の画面。表示内容はクエリ（?date= / ?view=archive / &category=）で切り替え、
+// データは実行時にブラウザーが /data/ から取得する。日次更新で Web を再ビルドしない。
+export default function Home() {
+  return (
+    <Suspense fallback={<Loading />}>
+      <DigestApp />
+    </Suspense>
+  );
 }

@@ -1,19 +1,14 @@
 {
-  "schemaVersion": 1,
-  "latestDate": "2026-11-21",
-  "lastSuccessAt": "2026-11-20T22:00:37.000Z",
+  "schemaVersion": 2,
+  "latestDate": "2026-11-22",
+  "lastSuccessAt": "2026-11-22T06:43:59.786Z",
   "dates": [
     {
-      "date": "2026-11-21",
-      "articleCount": 3,
+      "date": "2026-11-22",
+      "articleCount": 12,
+      "recommendationCount": 4,
       "status": "partial",
-      "generatedAt": "2026-11-20T22:00:37.000Z"
-    },
-    {
-      "date": "2026-11-20",
-      "articleCount": 2,
-      "status": "ok",
-      "generatedAt": "2026-11-19T22:00:41.000Z"
+      "generatedAt": "2026-11-22T06:43:59.786Z"
     }
   ]
 }

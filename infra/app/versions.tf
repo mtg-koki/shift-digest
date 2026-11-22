@@ -1,25 +1,20 @@
 terraform {
-  required_version = ">= 1.9.0, < 2.0.0"
+  required_version = ">= 1.10.0, < 2.0.0"
   required_providers {
-    azurerm = {
-      source  = "hashicorp/azurerm"
-      version = "~> 5.14"
-    }
-    random = {
-      source  = "hashicorp/random"
-      version = "~> 3.7"
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 6.73"
     }
   }
 
-  # 値は backend.hcl（git 管理外）または CI の -backend-config で渡す（部分構成）
-  backend "azurerm" {}
+  # S3 バックエンド（部分構成）。値は backend.hcl（git 管理外）または CI の -backend-config で渡す。
+  # ロックは S3 ネイティブ（use_lockfile = true）。
+  backend "s3" {}
 }
 
-provider "azurerm" {
-  features {}
-  subscription_id     = var.subscription_id
-  storage_use_azuread = true
-  # CI の ID は RG スコープの権限しか持たないため、プロバイダー登録は行わない
-  # （必要な登録は README の手順でサブスクリプション所有者が 1 回実施）
-  resource_provider_registrations = "none"
+provider "aws" {
+  region = var.aws_region
+  default_tags {
+    tags = local.tags
+  }
 }

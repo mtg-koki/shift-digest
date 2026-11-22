@@ -1,22 +1,16 @@
 import type { NextConfig } from "next";
 
+/**
+ * 静的エクスポート（out/）。SSR・Server Actions・API Routes は使わない。
+ * - 画面は index.html と 404.html だけ。日付・一覧・カテゴリはクエリで切り替えるため、
+ *   S3 + CloudFront（インデックス文書の自動補完なし）でも直接アクセスでき、CloudFront Functions は不要。
+ * - キャッシュ用ヘッダーは S3 へのアップロード時に付ける（README「キャッシュ」参照）。
+ */
 const nextConfig: NextConfig = {
-  output: "standalone",
+  output: "export",
+  trailingSlash: false,
   poweredByHeader: false,
-  serverExternalPackages: ["@azure/identity", "@azure/storage-blob"],
-  async headers() {
-    return [
-      {
-        source: "/:path*",
-        headers: [
-          // 動的ページをブラウザ・中継に長くキャッシュさせない（日次更新を即反映）
-          { key: "Cache-Control", value: "no-store" },
-          { key: "X-Content-Type-Options", value: "nosniff" },
-          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-        ],
-      },
-    ];
-  },
+  images: { unoptimized: true },
 };
 
 export default nextConfig;

@@ -1,0 +1,57 @@
+# Web 静的ファイルを S3 に配置する（手動実行・承認付き）。Terraform は実行しない。
+# 配信は CloudFront の Basic 認証（Terraform で関連付け済み）を通ったリクエストだけ。認証情報は扱わない。
+# - 画面用 JSON（data/）は Lambda が管理するため、対象外にして削除も上書きもしない
+# - ハッシュ付きアセット（_next/static/）は長期キャッシュ。古いものは削除しない（読み込み済みの HTML が参照し得るため）
+# - HTML 等は private, no-cache（エッジでもキャッシュしない設定）。Invalidation は不要
+name: Deploy web
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write # OIDC
+
+concurrency:
+  group: deploy-web
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+        env:
+          NEXT_TELEMETRY_DISABLED: "1"
+      - name: Guard (no data/ in build output, bucket configured)
+        run: |
+          test -f out/index.html && test -f out/404.html
+          test ! -e out/data || { echo "::error::out/data must not be deployed"; exit 1; }
+          test -n "${{ vars.SITE_BUCKET }}" || { echo "::error::vars.SITE_BUCKET is empty"; exit 1; }
+      - uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          mask-aws-account-id: true
+          aws-region: ${{ vars.AWS_REGION }}
+      - name: Upload hashed assets (immutable, never deleted here)
+        run: >
+          aws s3 sync out/_next/static "s3://${{ vars.SITE_BUCKET }}/_next/static"
+          --cache-control "public, max-age=31536000, immutable" --only-show-errors
+      - name: Upload HTML and other files (no shared cache; prunes stale files outside data/ and _next/static/)
+        run: >
+          aws s3 sync out "s3://${{ vars.SITE_BUCKET }}"
+          --exclude "data/*" --exclude "_next/static/*"
+          --cache-control "private, no-cache"
+          --delete --only-show-errors
+      - name: Summary
+        run: echo "Deployed web to s3://${{ vars.SITE_BUCKET }} (data/ untouched)." >> "$GITHUB_STEP_SUMMARY"

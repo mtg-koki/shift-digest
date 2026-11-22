@@ -1,5 +1,7 @@
-# terraform.tfvars にコピーして値を入れる（terraform.tfvars は git 管理外）
-subscription_id   = "00000000-0000-0000-0000-000000000000"
-location          = "japaneast"
-name_prefix       = "shiftdg"
+# terraform.tfvars にコピーして使う（terraform.tfvars は git 管理外）
+aws_region        = "ap-northeast-1"
+name_prefix       = "shift-digest"
 github_repository = "mtg-koki/shift-digest"
+# アカウントに GitHub の OIDC プロバイダーが既にある場合は、その ARN を指定する（重複作成を避ける）
+#   aws iam list-open-id-connect-providers
+# github_oidc_provider_arn = "arn:aws:iam::123456789012:oidc-provider/token.actions.githubusercontent.com"

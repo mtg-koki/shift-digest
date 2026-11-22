@@ -8,7 +8,7 @@ import {
   type DigestIndex,
   type LastRun,
 } from "../shared/schema";
-import type { Storage } from "../shared/storage";
+import type { ReadableStore } from "../shared/storage/types";
 import { isValidDateString } from "../shared/date";
 
 export interface RunStatus {
@@ -31,7 +31,7 @@ export type ArchiveView =
 
 class DataError extends Error {}
 
-async function readJson<T>(storage: Storage, key: string, schema: z.ZodType<T>): Promise<T | null> {
+async function readJson<T>(storage: ReadableStore, key: string, schema: z.ZodType<T>): Promise<T | null> {
   const text = await storage.getText(key);
   if (text === null) return null;
   let raw: unknown;
@@ -52,12 +52,12 @@ function toStatus(index: DigestIndex | null, lastRun: LastRun | null): RunStatus
   return { lastSuccessAt, lastRun, latestRunFailed };
 }
 
-/** 短時間のメモリキャッシュ。更新が長時間反映されない状態を避けるため TTL は短く。 */
+/** ブラウザー内の短時間メモリキャッシュ（同じ画面内の再取得を減らす）。更新が長く反映されない状態を避けるため TTL は短く。 */
 export class DigestReader {
   private cache = new Map<string, { expires: number; value: unknown }>();
 
   constructor(
-    private readonly storage: Storage,
+    private readonly storage: ReadableStore,
     private readonly ttlMs = 60_000,
     private readonly now: () => number = Date.now,
   ) {}
@@ -116,7 +116,7 @@ export class DigestReader {
 }
 
 function errorView(e: unknown): { kind: "error"; message: string } {
-  // 内部情報（接続先など）は画面に出さず、ログにだけ残す
+  // 内部情報（接続先など）は画面に出さず、コンソールにだけ残す
   console.error("[web] failed to load digest data", e);
   return { kind: "error", message: "データを取得できませんでした。時間をおいて再度お試しください。" };
 }

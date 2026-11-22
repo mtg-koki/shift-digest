@@ -1,162 +1,190 @@
-variable "subscription_id" {
-  description = "対象の Azure サブスクリプション ID"
+variable "aws_region" {
+  description = "リージョン。bootstrap と同じにする（ECR と Lambda は同一リージョン）"
   type        = string
-}
-
-variable "app_resource_group_name" {
-  description = "ブートストラップで作成したアプリ用 RG 名"
-  type        = string
+  default     = "ap-northeast-1"
 }
 
 variable "name_prefix" {
-  description = "リソース名の接頭辞（ブートストラップと同じ値）"
+  description = "リソース名の接頭辞。bootstrap と同じ値（CI ロールの権限範囲がこの名前に依存する）"
   type        = string
-  default     = "shiftdg"
+  default     = "shift-digest"
   validation {
-    condition     = can(regex("^[a-z0-9]{3,10}$", var.name_prefix))
-    error_message = "name_prefix must be 3-10 lowercase letters or digits."
+    condition     = can(regex("^[a-z][a-z0-9-]{2,20}$", var.name_prefix))
+    error_message = "name_prefix must be 3-21 chars: lowercase letters, digits, hyphens."
   }
 }
 
-# ---------------- イメージ ----------------
-variable "image_registry" {
-  description = "コンテナーレジストリ（GHCR を使用し ACR は作らない）"
+variable "name_index" {
+  description = "リソース名の末尾の連番（命名規則 <name_prefix>-<略称>[-<用途>]-<連番>）。アプリ層と同じ値にする"
   type        = string
-  default     = "ghcr.io"
+  default     = "01"
+  validation {
+    condition     = can(regex("^[0-9]{2}$", var.name_index))
+    error_message = "name_index must be two digits (e.g. 01)."
+  }
 }
 
-variable "image_namespace" {
-  description = "GHCR の名前空間（GitHub ユーザー名・小文字）"
+variable "permissions_boundary_arn" {
+  description = "bootstrap の出力 app_permissions_boundary_arn"
   type        = string
-  default     = "mtg-koki"
+}
+
+variable "ecr_repository_name" {
+  description = "bootstrap で作った ECR リポジトリ名（既定 <name_prefix>-ecr-<name_index>）"
+  type        = string
+  default     = ""
 }
 
 variable "image_tag" {
-  description = "デプロイするイメージタグ。Git commit SHA（不変タグ）。release.auto.tfvars で管理"
+  description = "Lambda に使うイメージのタグ（Git commit SHA 40 桁）。release.auto.tfvars で管理する"
   type        = string
   validation {
     condition     = can(regex("^[0-9a-f]{40}$", var.image_tag))
-    error_message = "image_tag must be a full 40-char git commit SHA (do not use latest)."
+    error_message = "image_tag must be a 40-char git commit SHA (latest is not allowed)."
   }
 }
 
-variable "ghcr_pull_username" {
-  description = "GHCR を非公開にする場合のみ設定（GitHub ユーザー名）。空なら公開イメージとして匿名 pull"
+# ---------------- Bedrock ----------------
+variable "bedrock_model_id" {
+  description = <<-EOT
+    Bedrock のモデル ID または推論プロファイル ID。空ならルールベース評価（AI 不使用・費用なし）。
+    例（2026-11-22 に公式情報で確認。README 参照）:
+      jp.anthropic.claude-haiku-5-5   … 日本国内（東京・大阪）のクロスリージョン推論
+      amazon.nova-lite-v1:0           … 東京リージョン内のオンデマンド推論
+  EOT
   type        = string
   default     = ""
+  validation {
+    condition     = var.bedrock_model_id == "" || can(regex("^[a-z0-9.:-]+$", var.bedrock_model_id))
+    error_message = "bedrock_model_id has invalid characters."
+  }
 }
 
-variable "ghcr_pull_token" {
-  description = "非公開 GHCR 用の read:packages トークン。Terraform state に保存される点に注意（README 参照）"
+variable "bedrock_destination_regions" {
+  description = <<-EOT
+    地域別（jp. / apac. 等）推論プロファイルの推論先リージョン。IAM で各リージョンの基盤モデルを許可するために使う。
+    jp. プロファイルは ap-northeast-1（東京）と ap-northeast-3（大阪）。プロファイルを変えたら公式情報で確認して合わせる。
+    リージョン内のモデル ID・global. プロファイルの場合は使わない。
+  EOT
+  type        = list(string)
+  default     = ["ap-northeast-1", "ap-northeast-3"]
+}
+
+# ---------------- Lambda / スケジュール ----------------
+variable "lambda_architecture" {
+  description = "Lambda の CPU アーキテクチャ。イメージのビルド対象（CI の platform）と一致させる"
   type        = string
-  default     = ""
-  sensitive   = true
+  default     = "x86_64"
+  validation {
+    condition     = contains(["x86_64", "arm64"], var.lambda_architecture)
+    error_message = "lambda_architecture must be x86_64 or arm64."
+  }
 }
 
-# ---------------- サイズ・スケール ----------------
-variable "web_cpu" {
-  description = "Web の vCPU（Consumption の有効な組み合わせ: 0.25/0.5Gi, 0.5/1Gi, ...）"
-  type        = number
-  default     = 0.25
-}
-
-variable "web_memory" {
-  type    = string
-  default = "0.5Gi"
-}
-
-variable "web_max_replicas" {
+variable "lambda_memory_mb" {
   type    = number
-  default = 1
+  default = 512
 }
 
-variable "batch_cpu" {
-  type    = number
-  default = 0.25
-}
-
-variable "batch_memory" {
-  type    = string
-  default = "0.5Gi"
-}
-
-variable "batch_cron" {
-  description = "Container Apps Jobs の cron は UTC で評価される。0 22 * * * = 毎日 07:00 JST"
-  type        = string
-  default     = "0 22 * * *"
-}
-
-variable "batch_timeout_seconds" {
-  description = "1 実行（レプリカ）の最大秒数"
+variable "lambda_timeout_seconds" {
+  description = "Lambda の最大実行時間（上限 900 秒）。バッチはこれより 90 秒以上前に処理を打ち切る"
   type        = number
-  default     = 1200
+  default     = 900
+  validation {
+    condition     = var.lambda_timeout_seconds >= 120 && var.lambda_timeout_seconds <= 900
+    error_message = "lambda_timeout_seconds must be 120-900."
+  }
 }
 
-variable "batch_retry_limit" {
-  description = "失敗時の再試行回数（再試行しても AI 呼び出しは日次上限内に収まる）"
+variable "lambda_reserved_concurrency" {
+  description = <<-EOT
+    同時実行数の予約。1 にすると多重実行を Lambda 側でも防げるが、新規アカウント等で同時実行クォータが小さいと
+    作成に失敗するため既定は未設定（null）。多重実行はバッチ内の S3 ロックで防いでいる。
+  EOT
+  type        = number
+  default     = null
+}
+
+variable "lambda_async_retries" {
+  description = "非同期呼び出し（スケジュール・手動）でバッチが失敗したときの Lambda の再試行回数（0〜2）"
   type        = number
   default     = 1
 }
 
-# ---------------- アプリ設定（秘密でない値のみ） ----------------
-variable "ai_provider" {
-  description = "mock / claude / azure-openai"
+variable "schedule_expression" {
+  description = "EventBridge Scheduler の式。タイムゾーンは schedule_timezone で解釈される"
   type        = string
-  default     = "mock"
-  validation {
-    condition     = contains(["mock", "claude", "azure-openai"], var.ai_provider)
-    error_message = "ai_provider must be mock, claude or azure-openai."
-  }
+  default     = "cron(0 7 * * ? *)"
 }
 
-variable "ai_model" {
-  description = "AI モデル名（利用可能なものを確認してから設定）"
-  type        = string
-  default     = ""
+variable "schedule_timezone" {
+  type    = string
+  default = "Asia/Tokyo"
 }
 
-variable "batch_extra_env" {
-  description = "バッチの追加環境変数（秘密でない値のみ。例: MAX_AI_ARTICLES_PER_DAY）"
-  type        = map(string)
-  default     = {}
+variable "schedule_flexible_window_minutes" {
+  description = "Flexible time window（分）。0 なら OFF（毎朝 7:00 ちょうどに起動）。分散させたい場合のみ 1〜1440"
+  type        = number
+  default     = 0
 }
 
-# ---------------- ログ ----------------
-variable "enable_log_analytics" {
-  description = "false にするとログを保存しない（リアルタイムのログストリームのみ）"
+variable "schedule_enabled" {
+  description = "false で日次実行を止める（関数・データは残る）"
   type        = bool
   default     = true
 }
 
+variable "batch_settings" {
+  description = "バッチの環境変数（件数・期間・上限）。キーと意味は .env.example 参照"
+  type        = map(string)
+  default = {
+    MAX_AI_ARTICLES_PER_DAY        = "30"
+    MAX_AI_ARTICLES_PER_SOURCE     = "10"
+    AI_BATCH_SIZE                  = "10"
+    AI_MAX_OUTPUT_TOKENS           = "2000"
+    AI_MAX_RETRIES                 = "2"
+    AI_TIMEOUT_MS                  = "60000"
+    MAX_RECOMMENDATIONS            = "5"
+    MAX_RECOMMENDATIONS_PER_SOURCE = "2"
+    MIN_RELEVANCE_SCORE            = "60"
+    LOOKBACK_HOURS                 = "48"
+    MAX_ITEMS_PER_SOURCE           = "30"
+    FEED_TIMEOUT_MS                = "15000"
+  }
+}
+
 variable "log_retention_days" {
-  description = "Log Analytics の保存期間（日）"
+  description = "CloudWatch Logs の保存日数"
   type        = number
   default     = 30
 }
 
-variable "log_daily_quota_gb" {
-  description = "Log Analytics の 1 日あたり取り込み上限（GB）。超過分は破棄される"
-  type        = number
-  default     = 0.1
+# ---------------- CloudFront ----------------
+variable "cloudfront_price_class" {
+  description = "PriceClass_200 は日本を含む。PriceClass_100 は北米・欧州のみ（日本からは遠いエッジになる）"
+  type        = string
+  default     = "PriceClass_200"
 }
 
-# ---------------- 予算通知 ----------------
-variable "budget_contact_emails" {
-  description = "予算通知の送信先。空なら予算を作らない。個人情報のため tfvars（git 管理外）か CI 変数で渡す"
+# ---------------- 通知・予算 ----------------
+variable "alert_emails" {
+  description = "バッチ失敗通知（SNS メール）の宛先。リポジトリには書かず TF_VAR_alert_emails 等で渡す。空なら購読なし"
   type        = list(string)
   default     = []
+  sensitive   = true
 }
 
-variable "budget_amount" {
-  description = "アプリ RG の月額予算（請求通貨建て。JPY 請求なら 500 = 500 円）"
+variable "budget_monthly_usd" {
+  description = "AWS Budgets の月額予算（USD、アカウント全体）。0 なら作らない。通知のみで課金は止まらない"
   type        = number
-  default     = 500
+  default     = 5
 }
 
-variable "budget_start_date" {
-  description = "予算の開始日（月初、RFC3339）"
-  type        = string
-  default     = "2026-12-01T00:00:00Z"
+variable "budget_emails" {
+  description = "予算通知の宛先。空なら予算を作らない"
+  type        = list(string)
+  default     = []
+  sensitive   = true
 }
 
 variable "tags" {

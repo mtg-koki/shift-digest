@@ -1,11 +1,14 @@
 node_modules/
 .next/
+out/
 dist/
 next-env.d.ts
 *.tsbuildinfo
 
 # ローカルデータ・検証用出力
 data/
+public/data/
+.local/
 .offline-feeds/
 .tmp*/
 .tmp*

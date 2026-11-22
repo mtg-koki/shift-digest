@@ -1,0 +1,64 @@
+# Lambda 用イメージを ECR へ push する（手動実行・承認付き）。
+# タグは Git commit SHA（ECR 側で IMMUTABLE）。latest は付けない。
+# push しただけでは Lambda は変わらない。release.auto.tfvars の image_tag を更新して Terraform を apply する。
+name: Publish batch image
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write # OIDC
+
+concurrency:
+  group: publish-image
+  cancel-in-progress: false
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+
+  publish:
+    needs: test
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v7
+      - uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          mask-aws-account-id: true
+          aws-region: ${{ vars.AWS_REGION }}
+      - id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+      - uses: docker/setup-buildx-action@v4
+      - name: Build and push (linux/amd64 = Lambda x86_64)
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: Dockerfile.lambda
+          push: true
+          platforms: linux/amd64
+          # Lambda はマニフェストリスト＋証明書（attestation）形式を扱えないため単一マニフェストにする
+          provenance: false
+          sbom: false
+          tags: ${{ steps.ecr.outputs.registry }}/${{ vars.ECR_REPOSITORY }}:${{ github.sha }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+          cache-from: type=gha,scope=lambda
+          cache-to: type=gha,mode=max,scope=lambda
+      - name: Summary
+        run: |
+          echo "Pushed ${{ vars.ECR_REPOSITORY }}:${{ github.sha }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "Next: set image_tag = \"${{ github.sha }}\" in infra/app/release.auto.tfvars, commit, then run the Terraform workflow." >> "$GITHUB_STEP_SUMMARY"

@@ -1,4 +1,4 @@
-# コード検証のみ。外部公開（イメージ push）・Azure へのアクセス・課金は行わない。
+# コード検証のみ。AWS へのアクセス・イメージ push・課金は行わない。
 name: CI
 
 on:
@@ -26,32 +26,34 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test
-      - run: npm run build
+      - name: Next.js static export
+        run: npm run build
         env:
           NEXT_TELEMETRY_DISABLED: "1"
+      - name: Check static export contains no data
+        run: test -f out/index.html && test -f out/404.html && test ! -e out/data
       - run: npm run build:batch
       - name: Offline batch smoke test (no network, no AI)
         run: npm run batch:offline
         env:
-          LOCAL_DATA_DIR: ${{ runner.temp }}/digest-data
+          LOCAL_PUBLIC_DIR: ${{ runner.temp }}/digest/public
+          LOCAL_INTERNAL_DIR: ${{ runner.temp }}/digest/internal
 
-  docker:
+  lambda-image:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        target: [web, batch]
     steps:
       - uses: actions/checkout@v7
       - uses: docker/setup-buildx-action@v4
-      - name: Build ${{ matrix.target }} image (not pushed)
+      - name: Build Lambda image (not pushed)
         uses: docker/build-push-action@v7
         with:
           context: .
-          file: Dockerfile.${{ matrix.target }}
+          file: Dockerfile.lambda
           push: false
           platforms: linux/amd64
-          cache-from: type=gha,scope=${{ matrix.target }}
-          cache-to: type=gha,mode=max,scope=${{ matrix.target }}
+          provenance: false
+          cache-from: type=gha,scope=lambda
+          cache-to: type=gha,mode=max,scope=lambda
 
   terraform:
     runs-on: ubuntu-latest
@@ -61,7 +63,7 @@ jobs:
         with:
           terraform_version: 1.17.2
       - run: terraform fmt -check -recursive infra
-      - name: Validate (no backend, no Azure access)
+      - name: Validate (no backend, no AWS access)
         run: |
           for d in infra/bootstrap infra/app; do
             terraform -chdir=$d init -backend=false -input=false -lockfile=readonly
