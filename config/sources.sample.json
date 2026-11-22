@@ -3,93 +3,158 @@
     {
       "id": "sample-tech",
       "name": "【架空】サンプル技術ニュース",
+      "homepageUrl": "https://example.com/",
       "feedUrl": "file:.offline-feeds/tech.xml",
+      "categories": [
+        "technology"
+      ],
       "enabled": true,
-      "defaultCategory": "technology",
-      "priority": 2,
-      "terms": {
-        "url": "https://example.com/sample-terms",
-        "checkedAt": "2026-11-22",
-        "summary": "【架空】ローカル検証用の架空の利用条件。実在の媒体・規約ではない。",
-        "fetch": { "status": "allowed", "note": "【架空】1 日 1 回の取得は可" },
-        "display": { "status": "allowed" },
-        "aiMetadata": { "status": "allowed" },
-        "fullText": { "status": "unknown" },
-        "attribution": "【架空】出典: サンプル技術ニュース"
-      }
+      "termsUrl": "https://example.com/sample-terms",
+      "reviewedAt": "2026-11-22",
+      "privateRssUseStatus": "allowed",
+      "aiMetadataStatus": "allowed",
+      "basis": {
+        "privateRss": "【架空】RSS リーダーでの私的利用を明示的に許可、という想定",
+        "aiMetadata": "【架空】AI サービスでの処理も可、という想定"
+      },
+      "attributionText": "【架空】出典: サンプル技術ニュース",
+      "priority": 2
     },
     {
       "id": "sample-policy",
       "name": "【架空】サンプル官公庁",
+      "homepageUrl": "https://example.com/",
       "feedUrl": "file:.offline-feeds/policy.xml",
+      "categories": [
+        "policy",
+        "ownership"
+      ],
       "enabled": true,
-      "defaultCategory": "policy",
-      "priority": 1,
-      "terms": {
-        "url": "https://example.com/sample-gov-terms",
-        "checkedAt": "2026-11-22",
-        "summary": "【架空】出典表記を条件に利用可、という想定。",
-        "fetch": { "status": "allowed" },
-        "display": { "status": "conditional", "note": "【架空】出典表記を付けること" },
-        "aiMetadata": { "status": "conditional", "note": "【架空】タイトル等のメタデータのみ" },
-        "fullText": { "status": "unknown" },
-        "attribution": "【架空】出典: サンプル官公庁ウェブサイト"
-      }
+      "termsUrl": "https://example.com/sample-gov-terms",
+      "reviewedAt": "2026-11-22",
+      "privateRssUseStatus": "conditional",
+      "aiMetadataStatus": "conditional",
+      "basis": {
+        "privateRss": "【架空】出典表記を条件に利用可、という想定",
+        "aiMetadata": "【架空】加工した旨の記載を条件に可、という想定"
+      },
+      "conditions": [
+        {
+          "appliesTo": "privateRss",
+          "kind": "implemented",
+          "text": "【架空】出典を表示する"
+        },
+        {
+          "appliesTo": "aiMetadata",
+          "kind": "implemented",
+          "text": "【架空】推薦理由は shift-digest が作成したと明示する"
+        }
+      ],
+      "attributionText": "【架空】出典: サンプル官公庁ウェブサイト",
+      "priority": 1
     },
     {
       "id": "sample-no-ai",
       "name": "【架空】AI送信未確認の媒体",
+      "homepageUrl": "https://example.com/",
       "feedUrl": "file:.offline-feeds/no-ai.xml",
+      "categories": [
+        "employment"
+      ],
       "enabled": true,
-      "defaultCategory": "employment",
-      "priority": 3,
-      "terms": {
-        "url": "https://example.com/sample-media-terms",
-        "checkedAt": "2026-11-22",
-        "summary": "【架空】取得・個人的な表示は可。AI サービスへの送信について記載がない、という想定。",
-        "fetch": { "status": "allowed" },
-        "display": { "status": "allowed" },
-        "aiMetadata": { "status": "unknown", "note": "【架空】規約に記載なし。問い合わせ予定" },
-        "fullText": { "status": "prohibited" }
-      }
+      "termsUrl": "https://example.com/sample-media-terms",
+      "reviewedAt": "2026-11-22",
+      "privateRssUseStatus": "conditional",
+      "aiMetadataStatus": "unreviewed",
+      "basis": {
+        "privateRss": "【架空】RSS リーダーでの購読を案内、という想定"
+      },
+      "conditions": [
+        {
+          "appliesTo": "privateRss",
+          "kind": "implemented",
+          "text": "【架空】私的な購読の範囲に限る"
+        }
+      ],
+      "openQuestions": [
+        "【架空】AI サービスへの送信について記載がない"
+      ],
+      "attributionText": "【架空】出典: AI送信未確認の媒体",
+      "priority": 3
+    },
+    {
+      "id": "sample-awaiting",
+      "name": "【架空】ユーザー確認待ちの媒体",
+      "homepageUrl": "https://example.com/",
+      "feedUrl": "file:.offline-feeds/atom.xml",
+      "categories": [
+        "technology"
+      ],
+      "enabled": true,
+      "termsUrl": "https://example.com/sample-terms-2",
+      "reviewedAt": "2026-11-22",
+      "privateRssUseStatus": "conditional",
+      "aiMetadataStatus": "unreviewed",
+      "basis": {
+        "privateRss": "【架空】条件付きで可、という想定"
+      },
+      "conditions": [
+        {
+          "appliesTo": "privateRss",
+          "kind": "userConfirmation",
+          "text": "【架空】この条件をユーザーが確認するまで取得しない",
+          "confirmedAt": null
+        }
+      ],
+      "attributionText": "【架空】出典: 確認待ちの媒体",
+      "priority": 3
     },
     {
       "id": "sample-prohibited",
       "name": "【架空】自動取得禁止の媒体",
+      "homepageUrl": "https://example.com/",
       "feedUrl": "file:.offline-feeds/prohibited.xml",
+      "categories": [
+        "ownership"
+      ],
       "enabled": true,
-      "defaultCategory": "ownership",
-      "terms": {
-        "url": "https://example.com/sample-prohibited-terms",
-        "checkedAt": "2026-11-22",
-        "summary": "【架空】自動取得を禁止している、という想定。取得されないことの確認用。",
-        "fetch": { "status": "prohibited" },
-        "display": { "status": "unknown" },
-        "aiMetadata": { "status": "unknown" },
-        "fullText": { "status": "prohibited" }
-      }
+      "termsUrl": "https://example.com/sample-prohibited",
+      "reviewedAt": "2026-11-22",
+      "privateRssUseStatus": "prohibited",
+      "aiMetadataStatus": "prohibited",
+      "openQuestions": [],
+      "attributionText": "",
+      "priority": 5
     },
     {
       "id": "sample-broken",
-      "name": "【架空】取得失敗する媒体",
+      "name": "【架空】取得に失敗する媒体",
+      "homepageUrl": "https://example.com/",
       "feedUrl": "file:.offline-feeds/missing.xml",
+      "categories": [
+        "technology"
+      ],
       "enabled": true,
-      "defaultCategory": "technology",
-      "terms": {
-        "url": "https://example.com/sample-terms",
-        "checkedAt": "2026-11-22",
-        "summary": "【架空】一部取得失敗の表示確認用（ファイルが存在しない）。",
-        "fetch": { "status": "allowed" },
-        "display": { "status": "allowed" },
-        "aiMetadata": { "status": "allowed" },
-        "fullText": { "status": "unknown" }
-      }
-    },
+      "termsUrl": "https://example.com/sample-terms",
+      "reviewedAt": "2026-11-22",
+      "privateRssUseStatus": "allowed",
+      "aiMetadataStatus": "unreviewed",
+      "basis": {
+        "privateRss": "【架空】"
+      },
+      "attributionText": "【架空】出典: 取得失敗の媒体",
+      "priority": 5
+    }
+  ],
+  "manualLinks": [
     {
-      "id": "sample-disabled",
-      "name": "【架空】未確認の媒体（無効）",
-      "feedUrl": "https://example.com/feed.xml",
-      "defaultCategory": "technology"
+      "id": "sample-manual",
+      "name": "【架空】RSS のない媒体",
+      "url": "https://example.com/no-rss",
+      "categories": [
+        "employment"
+      ],
+      "note": "【架空】RSS がないため手動リンクのみ"
     }
   ]
 }

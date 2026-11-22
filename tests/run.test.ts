@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { runDaily, type RunDeps } from "../src/batch/run";
 import { loadBatchEnv } from "../src/batch/config";
-import { DailyReportSchema, DigestIndexSchema, LastRunSchema, StateSchema, STORAGE_KEYS } from "../src/shared/schema";
+import { DailyReportSchema, DigestIndexSchema, FeedSnapshotSchema, LastRunSchema, StateSchema, STORAGE_KEYS } from "../src/shared/schema";
 import type { Storage } from "../src/shared/storage";
 import { FailingWriteStorage, FakeAssessor, env, fakeFetcher, feedItem, interests, source, tmpStorage } from "./helpers";
 
@@ -57,10 +57,10 @@ describe("runDaily", () => {
         assessor: ai,
         sources: [
           source("ok"),
-          source("noai", { ai: "unknown" }),
-          source("unknown-fetch", { fetch: "unknown" }),
-          source("prohibited", { fetch: "prohibited" }),
-          source("nodisplay", { display: "unknown" }),
+          source("noai", { ai: "unreviewed" }),
+          source("unknown-fetch", { rss: "unreviewed", ai: "unreviewed" }),
+          source("prohibited", { rss: "prohibited", ai: "unreviewed" }),
+          source("nodisplay", { pending: "privateRss" }),
           source("disabled", { enabled: false }),
         ],
       }),
@@ -203,7 +203,7 @@ describe("runDaily", () => {
     expect(await ng.storage.getText(STORAGE_KEYS.index)).toBeNull();
     expect((await read(ng.storage, STORAGE_KEYS.lastRun, LastRunSchema))!.status).toBe("failed");
     const none = tmpStorage();
-    expect(await runDaily(deps(none.storage, { sources: [source("x", { fetch: "unknown" })] }))).toMatchObject({ status: "ok", articles: 0 });
+    expect(await runDaily(deps(none.storage, { sources: [source("x", { rss: "unreviewed", ai: "unreviewed" })] }))).toMatchObject({ status: "ok", articles: 0 });
   });
 
   it("keeps the previous latest when today's run fails", async () => {
@@ -238,12 +238,86 @@ describe("runDaily", () => {
     expect(rec.assessment).toMatchObject({ assessor: { provider: "rules" }, assessmentBasis: "metadata_only" });
   });
 
-  it("excludes undated items unless INCLUDE_UNDATED is set", async () => {
-    const items = [feedItem(1, 1, NOW, { publishedAt: null })];
+  it("lists undated items in the reader; recommends them only when INCLUDE_UNDATED is set", async () => {
+    const items = [feedItem(1, 1, NOW, { publishedAt: null, title: "AIエージェントの新機能" })];
     const a = tmpStorage();
-    expect(await runDaily(deps(a.storage, { fetcher: fakeFetcher({ a: items }) }))).toMatchObject({ articles: 0 });
+    expect(await runDaily(deps(a.storage, { fetcher: fakeFetcher({ a: items }) }))).toMatchObject({ articles: 1, recommendations: 0 });
+    expect((await read(a.storage, STORAGE_KEYS.feed, FeedSnapshotSchema))!.articles).toHaveLength(1);
     const b = tmpStorage();
-    expect(await runDaily(deps(b.storage, { fetcher: fakeFetcher({ a: items }), env: loadBatchEnv({ INCLUDE_UNDATED: "true" }) }))).toMatchObject({ articles: 1 });
+    expect(await runDaily(deps(b.storage, { fetcher: fakeFetcher({ a: items }), env: loadBatchEnv({ INCLUDE_UNDATED: "true" }) }))).toMatchObject({ articles: 1, recommendations: 1 });
+  });
+
+  it("builds the reader feed: all articles in the retention window, newest first, not limited to recommendations", async () => {
+    const { storage } = tmpStorage();
+    // 20 件（3 日前〜）。読む候補は最大 5 件だが、一覧は全件
+    const items = Array.from({ length: 20 }, (_, i) => feedItem(i, 3 * 24 + i, NOW));
+    await runDaily(deps(storage, { fetcher: fakeFetcher({ a: items }), sources: [source("a", { ai: "unreviewed" })] }));
+    const feed = (await read(storage, STORAGE_KEYS.feed, FeedSnapshotSchema))!;
+    expect(feed.articles).toHaveLength(20);
+    const keys = feed.articles.map((x) => x.publishedAt!);
+    expect([...keys].sort().reverse()).toEqual(keys);
+    // AI 対象外の情報源でも一覧に並ぶ。低品質扱いしない（評価が無いだけ）
+    expect(feed.articles.every((x) => x.aiEligible === false)).toBe(true);
+    expect(feed.sources[0]).toMatchObject({ id: "a", lastResult: "updated", lastError: null, articleCount: 20, aiEnabled: false, attributionText: "出典: Source a" });
+    expect(JSON.stringify(feed)).not.toMatch(/description|summary_ja|body/);
+
+    // 翌日: 同じ記事は重複登録しない。保存期間（既定 30 日）を過ぎた記事は消える
+    const old = feedItem(99, 40 * 24, NEXT_DAY);
+    await runDaily(deps(storage, { fetcher: fakeFetcher({ a: [...items, old, feedItem(100, 1, NEXT_DAY)] }), now: () => NEXT_DAY }));
+    const feed2 = (await read(storage, STORAGE_KEYS.feed, FeedSnapshotSchema))!;
+    expect(feed2.articles).toHaveLength(21);
+    expect(new Set(feed2.articles.map((x) => x.id)).size).toBe(21);
+  });
+
+  it("drops articles of sources that are no longer allowed, and respects FEED_MAX_ARTICLES", async () => {
+    const { storage } = tmpStorage();
+    await runDaily(deps(storage, { fetcher: fakeFetcher({ a: [feedItem(1, 1, NOW)], b: [feedItem(2, 1, NOW, { link: "https://b.example.com/2" })] }), sources: [source("a"), source("b")] }));
+    expect((await read(storage, STORAGE_KEYS.feed, FeedSnapshotSchema))!.articles).toHaveLength(2);
+    await runDaily(deps(storage, { fetcher: fakeFetcher({ a: [] }), sources: [source("a"), source("b", { rss: "unreviewed", ai: "unreviewed" })], now: () => NEXT_DAY }));
+    const feed = (await read(storage, STORAGE_KEYS.feed, FeedSnapshotSchema))!;
+    expect(feed.articles.map((x) => x.sourceId)).toEqual(["a"]);
+    expect(feed.sources.map((x) => x.id)).toEqual(["a"]);
+    const small = tmpStorage();
+    const many = Array.from({ length: 80 }, (_, i) => feedItem(i, i + 1, NOW));
+    await runDaily(deps(small.storage, { fetcher: fakeFetcher({ a: many }), env: loadBatchEnv({ FEED_MAX_ARTICLES: "50", MAX_ITEMS_PER_SOURCE: "100" }) }));
+    expect((await read(small.storage, STORAGE_KEYS.feed, FeedSnapshotSchema))!.articles).toHaveLength(50);
+  });
+
+  it("uses conditional GET validators and treats 304 as a successful fetch; records per-source errors", async () => {
+    const { storage } = tmpStorage();
+    const f1 = fakeFetcher({ a: [feedItem(1, 1, NOW)], b: new Error("HTTP 503") });
+    await runDaily(deps(storage, { fetcher: f1, sources: [source("a"), source("b")] }));
+    expect(f1.validators.a).toEqual({ etag: undefined, lastModified: undefined });
+    const feed1 = (await read(storage, STORAGE_KEYS.feed, FeedSnapshotSchema))!;
+    expect(feed1.sources.find((x) => x.id === "b")).toMatchObject({ lastResult: "failed", lastError: "HTTP 503", lastSuccessAt: null });
+
+    const f2 = fakeFetcher({ a: "304", b: [feedItem(2, 1, NEXT_DAY, { link: "https://b.example.com/2" })] });
+    const out = await runDaily(deps(storage, { fetcher: f2, sources: [source("a"), source("b")], now: () => NEXT_DAY }));
+    expect(out.status).toBe("ok");
+    expect(f2.validators.a).toEqual({ etag: '"e1"', lastModified: "Sat, 21 Nov 2026 00:00:00 GMT" });
+    const feed2 = (await read(storage, STORAGE_KEYS.feed, FeedSnapshotSchema))!;
+    // 304 でも前回の記事は一覧に残り、最終正常取得日時は更新される
+    expect(feed2.articles.map((x) => x.sourceId).sort()).toEqual(["a", "b"]);
+    expect(feed2.sources.find((x) => x.id === "a")).toMatchObject({ lastResult: "not-modified", lastSuccessAt: NEXT_DAY.toISOString(), lastError: null });
+    expect(feed2.sources.find((x) => x.id === "b")).toMatchObject({ lastResult: "updated", lastError: null });
+  });
+
+  it("respects a per-source minimum fetch interval", async () => {
+    const { storage } = tmpStorage();
+    const s = source("a", { extra: { minFetchIntervalHours: 48 } });
+    await runDaily(deps(storage, { fetcher: fakeFetcher({ a: [feedItem(1, 1, NOW)] }), sources: [s] }));
+    const f = fakeFetcher({ a: [feedItem(2, 1, NEXT_DAY)] });
+    await runDaily(deps(storage, { fetcher: f, sources: [s], now: () => NEXT_DAY }));
+    expect(f.called).toEqual([]);
+    const feed = (await read(storage, STORAGE_KEYS.feed, FeedSnapshotSchema))!;
+    expect(feed.sources[0]).toMatchObject({ lastResult: "skipped-interval", articleCount: 1 });
+  });
+
+  it("does not fetch sources awaiting user confirmation", async () => {
+    const { storage } = tmpStorage();
+    const f = fakeFetcher({ a: [feedItem(1, 1, NOW)], w: [feedItem(2, 1, NOW)] });
+    await runDaily(deps(storage, { fetcher: f, sources: [source("a"), source("w", { pending: "privateRss" })] }));
+    expect(f.called).toEqual(["a"]);
   });
 
   it("skips when another run holds the lock", async () => {

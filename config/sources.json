@@ -1,179 +1,509 @@
 {
   "sources": [
     {
-      "id": "mhlw",
-      "name": "厚生労働省 新着情報",
-      "feedUrl": "https://www.mhlw.go.jp/stf/news.rdf",
-      "enabled": false,
-      "defaultCategory": "employment",
-      "priority": 1,
-      "terms": {
-        "url": null,
-        "checkedAt": null,
-        "summary": "未確認。フィードの応答は 2026-11-21 に確認（以前の構成時）。利用規約・RSS の利用条件は確認していない。",
-        "fetch": {
-          "status": "unknown"
+      "id": "digital",
+      "name": "デジタル庁 新着・更新",
+      "homepageUrl": "https://www.digital.go.jp/",
+      "feedUrl": "https://www.digital.go.jp/rss/news.xml",
+      "categories": [
+        "policy",
+        "technology"
+      ],
+      "enabled": true,
+      "termsUrl": "https://www.digital.go.jp/copyright-policy",
+      "reviewedAt": "2026-11-22",
+      "privateRssUseStatus": "conditional",
+      "aiMetadataStatus": "conditional",
+      "basis": {
+        "privateRss": "コンテンツは権利表記がない限り「公共データ利用規約（第1.0版）」（PDL1.0）が適用。PDL1.0 は複製・公衆送信・翻案等を自由に利用でき商用利用も可能、出典の記載が必要。RSS 配信ページ（https://www.digital.go.jp/rss）に利用制限の記載なし。",
+        "aiMetadata": "PDL1.0 は翻案等を含め自由に利用できる（禁止事項はロゴ等の除外と、編集・加工した情報を国が作成したかのように公表・利用しないこと）。タイトルを関心度評価に使うことはこの範囲と判断。"
+      },
+      "conditions": [
+        {
+          "appliesTo": "privateRss",
+          "kind": "implemented",
+          "text": "出典（媒体名と元記事へのリンク）を一覧・出典欄に表示する。タイトルは改変しない。"
         },
-        "display": {
-          "status": "unknown"
-        },
-        "aiMetadata": {
-          "status": "unknown"
-        },
-        "fullText": {
-          "status": "unknown"
+        {
+          "appliesTo": "aiMetadata",
+          "kind": "implemented",
+          "text": "AI の推薦理由・関連度は shift-digest が作成したものと明示し、デジタル庁の情報と混同させない。"
         }
-      }
+      ],
+      "openQuestions": [
+        "ロゴ・キャラクター等の除外対象は RSS のタイトルには含まれない想定（画像は扱わない）。"
+      ],
+      "attributionText": "出典: デジタル庁ウェブサイト（公共データ利用規約 第1.0版）。推薦理由・関連度は shift-digest が作成。",
+      "priority": 1
+    },
+    {
+      "id": "soumu",
+      "name": "総務省 新着情報",
+      "homepageUrl": "https://www.soumu.go.jp/",
+      "feedUrl": "https://www.soumu.go.jp/news.rdf",
+      "categories": [
+        "policy"
+      ],
+      "enabled": true,
+      "termsUrl": "https://www.soumu.go.jp/menu_kyotsuu/policy/tyosaku.html",
+      "reviewedAt": "2026-11-22",
+      "privateRssUseStatus": "conditional",
+      "aiMetadataStatus": "conditional",
+      "basis": {
+        "privateRss": "当省ホームページのコンテンツは権利表記がない限り PDL1.0 が適用され、出典記載例「出典：総務省ホームページ（当該ページのURL）」。RSS 案内ページ（https://www.soumu.go.jp/menu_kyotsuu/rss_information.html）に利用制限の記載なし。",
+        "aiMetadata": "PDL1.0 の範囲（翻案等を含む自由な利用）。別の法令で利用が制限されるコンテンツがあるとの記載はあるが、RSS のタイトルとは別。"
+      },
+      "conditions": [
+        {
+          "appliesTo": "privateRss",
+          "kind": "implemented",
+          "text": "出典（媒体名と元記事へのリンク）を表示する。タイトルは改変しない。"
+        },
+        {
+          "appliesTo": "aiMetadata",
+          "kind": "implemented",
+          "text": "AI の推薦理由・関連度は shift-digest が作成したものと明示する。"
+        }
+      ],
+      "openQuestions": [
+        "「他の法令により利用が制限されるコンテンツ」の範囲は個別ページで確認する必要がある（タイトルとリンクの私的表示は該当しない想定）。"
+      ],
+      "attributionText": "出典: 総務省ホームページ（公共データ利用規約 第1.0版）。推薦理由・関連度は shift-digest が作成。",
+      "priority": 1
     },
     {
       "id": "meti",
       "name": "経済産業省 ニュースリリース",
+      "homepageUrl": "https://www.meti.go.jp/",
       "feedUrl": "https://www.meti.go.jp/ml_index_release_atom.xml",
+      "categories": [
+        "policy",
+        "ownership"
+      ],
       "enabled": false,
-      "defaultCategory": "policy",
-      "priority": 1,
-      "terms": {
-        "url": null,
-        "checkedAt": null,
-        "summary": "未確認。フィードの応答は 2026-11-21 に確認（以前の構成時）。利用規約・RSS の利用条件は確認していない。",
-        "fetch": {
-          "status": "unknown"
+      "termsUrl": "https://www.meti.go.jp/main/rules.html",
+      "reviewedAt": "2026-11-22",
+      "privateRssUseStatus": "conditional",
+      "aiMetadataStatus": "conditional",
+      "basis": {
+        "privateRss": "コンテンツは権利表記がない限り PDL1.0 に準拠した利用条件で利用できる。出典記載例「出典：経済産業省ウェブサイト（当該ページのURL）」。",
+        "aiMetadata": "PDL1.0 の範囲。編集・加工して利用する場合はその旨を記載し、国が作成したかのような態様で公表・利用しないこと。"
+      },
+      "conditions": [
+        {
+          "appliesTo": "privateRss",
+          "kind": "implemented",
+          "text": "出典（媒体名と元記事へのリンク）を表示する。タイトルは改変しない。"
         },
-        "display": {
-          "status": "unknown"
-        },
-        "aiMetadata": {
-          "status": "unknown"
-        },
-        "fullText": {
-          "status": "unknown"
+        {
+          "appliesTo": "aiMetadata",
+          "kind": "implemented",
+          "text": "AI の推薦理由・関連度は shift-digest が作成したものと明示する。"
         }
-      }
+      ],
+      "openQuestions": [
+        "RSS 案内ページ（https://www.meti.go.jp/rss/index.html）に「RSSによる更新情報の配信につきましては、現在調整中のため提供しておりません。」とあり、フィードの最新項目は 2026-06 で更新が止まっている。配信再開まで無効にし、手動リンクで代替する。"
+      ],
+      "attributionText": "出典: 経済産業省ウェブサイト（公共データ利用規約 第1.0版）。推薦理由・関連度は shift-digest が作成。",
+      "priority": 1
     },
     {
-      "id": "digital",
-      "name": "デジタル庁 ニュース",
-      "feedUrl": "https://www.digital.go.jp/rss/news.xml",
-      "enabled": false,
-      "defaultCategory": "policy",
-      "priority": 1,
-      "terms": {
-        "url": null,
-        "checkedAt": null,
-        "summary": "未確認。フィードの応答は 2026-11-21 に確認（以前の構成時）。利用規約・RSS の利用条件は確認していない。",
-        "fetch": {
-          "status": "unknown"
+      "id": "uk-cma",
+      "name": "UK Competition and Markets Authority (GOV.UK)",
+      "homepageUrl": "https://www.gov.uk/government/organisations/competition-and-markets-authority",
+      "feedUrl": "https://www.gov.uk/government/organisations/competition-and-markets-authority.atom",
+      "categories": [
+        "ownership",
+        "policy"
+      ],
+      "enabled": true,
+      "termsUrl": "https://www.gov.uk/help/terms-conditions",
+      "reviewedAt": "2026-11-22",
+      "privateRssUseStatus": "conditional",
+      "aiMetadataStatus": "conditional",
+      "basis": {
+        "privateRss": "GOV.UK terms: content is made available through feeds for other websites and applications to use; all content is under the Open Government Licence v3.0 except where otherwise stated. OGL v3.0 allows copying, adapting and including the information in your own product or application, with acknowledgement of the source.",
+        "aiMetadata": "OGL v3.0 permits adapting and exploiting the information commercially and non-commercially; using titles for relevance scoring is within this."
+      },
+      "conditions": [
+        {
+          "appliesTo": "privateRss",
+          "kind": "implemented",
+          "text": "Show the OGL attribution statement and link to the original page. Titles are not modified."
         },
-        "display": {
-          "status": "unknown"
-        },
-        "aiMetadata": {
-          "status": "unknown"
-        },
-        "fullText": {
-          "status": "unknown"
+        {
+          "appliesTo": "aiMetadata",
+          "kind": "implemented",
+          "text": "Do not imply endorsement by the CMA; AI reasons are labelled as created by shift-digest."
         }
-      }
+      ],
+      "openQuestions": [
+        "GOV.UK says some content is not under the OGL but does not list it in the terms; feed titles are assumed to be covered."
+      ],
+      "attributionText": "Contains public sector information licensed under the Open Government Licence v3.0.（CMA / GOV.UK）",
+      "priority": 2
     },
     {
-      "id": "soumu",
-      "name": "総務省 報道資料",
-      "feedUrl": "https://www.soumu.go.jp/news.rdf",
-      "enabled": false,
-      "defaultCategory": "policy",
-      "priority": 1,
-      "terms": {
-        "url": null,
-        "checkedAt": null,
-        "summary": "未確認。フィードの応答は 2026-11-21 に確認（以前の構成時）。利用規約・RSS の利用条件は確認していない。",
-        "fetch": {
-          "status": "unknown"
-        },
-        "display": {
-          "status": "unknown"
-        },
-        "aiMetadata": {
-          "status": "unknown"
-        },
-        "fullText": {
-          "status": "unknown"
+      "id": "rieti",
+      "name": "RIETI 経済産業研究所 更新情報",
+      "homepageUrl": "https://www.rieti.go.jp/jp/",
+      "feedUrl": "https://www.rieti.go.jp/jp/rss/index.rdf",
+      "categories": [
+        "employment",
+        "ownership"
+      ],
+      "enabled": true,
+      "termsUrl": "https://www.rieti.go.jp/jp/faq.html",
+      "reviewedAt": "2026-11-22",
+      "privateRssUseStatus": "conditional",
+      "aiMetadataStatus": "unreviewed",
+      "basis": {
+        "privateRss": "FAQ の RSS 案内に「本RSSは、個人が非営利目的でお使いいただく場合に限り、ご自由にご利用いただけます。」。サイトポリシー（https://www.rieti.go.jp/jp/site_policy.html）は個人利用での表示・複製を、公開環境に移さない・商用利用しない前提で認め、改変は認めない。"
+      },
+      "conditions": [
+        {
+          "appliesTo": "privateRss",
+          "kind": "implemented",
+          "text": "個人・非営利の利用に限る（Basic 認証で自分だけが閲覧。公開しない・商用利用しない）。タイトルを改変しない。出所を表示する。"
         }
-      }
+      ],
+      "openQuestions": [
+        "タイトル等を外部の AI サービス（Amazon Bedrock）に送ることが「個人が非営利目的でお使いいただく場合」の範囲に入るかは明記がない。",
+        "ロゴは利用しない（画像は扱わない）。"
+      ],
+      "attributionText": "出典: 独立行政法人経済産業研究所（RIETI）。個人・非営利の利用に限る。",
+      "priority": 2
     },
     {
-      "id": "openai",
+      "id": "publickey",
+      "name": "Publickey",
+      "homepageUrl": "https://www.publickey1.jp/",
+      "feedUrl": "https://www.publickey1.jp/atom.xml",
+      "categories": [
+        "technology"
+      ],
+      "enabled": true,
+      "termsUrl": "https://www.publickey1.jp/about-us.html",
+      "reviewedAt": "2026-11-22",
+      "privateRssUseStatus": "conditional",
+      "aiMetadataStatus": "unreviewed",
+      "basis": {
+        "privateRss": "運営者の案内ページで「Publickeyの新着情報をチェックしませんか？ … RSSリーダーで：Feed」と RSS リーダーでの購読を案内している。利用制限の記載は確認できなかった。"
+      },
+      "conditions": [
+        {
+          "appliesTo": "privateRss",
+          "kind": "implemented",
+          "text": "RSS リーダーとしての私的な購読の範囲に限る（自分だけが閲覧。再配信しない）。タイトルを改変せず、媒体名と元記事へのリンクを表示する。"
+        }
+      ],
+      "openQuestions": [
+        "利用規約・転載条件のページは見つからなかった。AI サービスへのタイトル送信については記載がない。"
+      ],
+      "attributionText": "出典: Publickey（https://www.publickey1.jp/）",
+      "priority": 3
+    },
+    {
+      "id": "simonwillison",
+      "name": "Simon Willison's Weblog",
+      "homepageUrl": "https://simonwillison.net/",
+      "feedUrl": "https://simonwillison.net/atom/everything/",
+      "categories": [
+        "technology"
+      ],
+      "enabled": true,
+      "termsUrl": "https://simonwillison.net/about/",
+      "reviewedAt": "2026-11-22",
+      "privateRssUseStatus": "conditional",
+      "aiMetadataStatus": "unreviewed",
+      "basis": {
+        "privateRss": "About page: \"You can also follow my writing using Atom feeds.\" and names https://simonwillison.net/atom/everything/ as the main feed. No restriction on feed use was found."
+      },
+      "conditions": [
+        {
+          "appliesTo": "privateRss",
+          "kind": "implemented",
+          "text": "Personal feed reading only (only I can view; no redistribution). Titles unmodified; show the site name and link to the original."
+        }
+      ],
+      "openQuestions": [
+        "No licence or terms page; sending titles to an AI service is not addressed."
+      ],
+      "attributionText": "Source: Simon Willison's Weblog (https://simonwillison.net/)",
+      "priority": 3
+    },
+    {
+      "id": "mhlw",
+      "name": "厚生労働省 新着情報",
+      "homepageUrl": "https://www.mhlw.go.jp/",
+      "feedUrl": "https://www.mhlw.go.jp/stf/news.rdf",
+      "categories": [
+        "employment",
+        "policy"
+      ],
+      "enabled": true,
+      "termsUrl": "https://www.mhlw.go.jp/rss/index.html",
+      "reviewedAt": "2026-11-22",
+      "privateRssUseStatus": "conditional",
+      "aiMetadataStatus": "unreviewed",
+      "basis": {
+        "privateRss": "RSS 案内ページで RSS の購読を案内。サイトのコンテンツは公共データ利用規約（第1.0版）で利用できる（https://www.mhlw.go.jp/chosakuken/index.html）。ただし RSS 案内ページに「営利・非営利を問わず、その情報に基づいたホームページ・メールマガジンの作成、情報の再配布は固くお断りします。」とある。"
+      },
+      "conditions": [
+        {
+          "appliesTo": "privateRss",
+          "kind": "implemented",
+          "text": "再配布しない（Basic 認証で自分だけが閲覧）。出典（媒体名と元記事へのリンク）を表示する。"
+        },
+        {
+          "appliesTo": "privateRss",
+          "kind": "userConfirmation",
+          "text": "RSS 案内ページの「その情報に基づいたホームページ…の作成、情報の再配布は固くお断りします」が、認証付きの自分専用 RSS リーダー（自分だけが閲覧）に当たらないと判断してよいか。判断したら confirmedAt に日付を入れる。",
+          "confirmedAt": null
+        }
+      ],
+      "openQuestions": [
+        "自分専用の Web 画面が「その情報に基づいたホームページの作成」に当たるか明記がない。",
+        "AI サービスへのタイトル送信が「情報の再配布」に当たるか明記がない。"
+      ],
+      "attributionText": "出典: 厚生労働省ホームページ",
+      "priority": 1
+    },
+    {
+      "id": "itmedia-aiplus",
+      "name": "ITmedia AI＋",
+      "homepageUrl": "https://www.itmedia.co.jp/aiplus/",
+      "feedUrl": "https://rss.itmedia.co.jp/rss/2.0/aiplus.xml",
+      "categories": [
+        "technology"
+      ],
+      "enabled": false,
+      "termsUrl": "https://corp.itmedia.co.jp/media/rss_condition/",
+      "reviewedAt": "2026-11-22",
+      "privateRssUseStatus": "unreviewed",
+      "aiMetadataStatus": "unreviewed",
+      "openQuestions": [
+        "RSS 利用条件に「アプリ等への組み込みについては、こちらからご相談ください」とあり、自作の RSS リーダー（Web 画面）が該当するか不明。相談が必要。",
+        "禁止事項「RSSの一部削除等の改変（配信記事・広告情報の文章のみを抜粋しての転載等を含みます）」に、説明文を保存せずタイトル・リンクだけを表示することが当たるか不明。",
+        "AI サービスへのタイトル送信は記載なし（「配信元サイトの趣旨に合わない利用」等の包括条項あり）。"
+      ],
+      "attributionText": "出典: ITmedia AI＋",
+      "priority": 3
+    },
+    {
+      "id": "itmedia-news",
+      "name": "ITmedia NEWS 速報",
+      "homepageUrl": "https://www.itmedia.co.jp/news/",
+      "feedUrl": "https://rss.itmedia.co.jp/rss/2.0/news_bursts.xml",
+      "categories": [
+        "technology"
+      ],
+      "enabled": false,
+      "termsUrl": "https://corp.itmedia.co.jp/media/rss_condition/",
+      "reviewedAt": "2026-11-22",
+      "privateRssUseStatus": "unreviewed",
+      "aiMetadataStatus": "unreviewed",
+      "openQuestions": [
+        "ITmedia AI＋ と同じ RSS 利用条件（アプリ等への組み込みは要相談・一部削除等の改変の禁止）。"
+      ],
+      "attributionText": "出典: ITmedia NEWS",
+      "priority": 3
+    },
+    {
+      "id": "atmarkit",
+      "name": "＠IT",
+      "homepageUrl": "https://atmarkit.itmedia.co.jp/",
+      "feedUrl": "https://rss.itmedia.co.jp/rss/2.0/ait.xml",
+      "categories": [
+        "technology"
+      ],
+      "enabled": false,
+      "termsUrl": "https://corp.itmedia.co.jp/media/rss_condition/",
+      "reviewedAt": "2026-11-22",
+      "privateRssUseStatus": "unreviewed",
+      "aiMetadataStatus": "unreviewed",
+      "openQuestions": [
+        "ITmedia AI＋ と同じ RSS 利用条件（アプリ等への組み込みは要相談・一部削除等の改変の禁止）。"
+      ],
+      "attributionText": "出典: ＠IT",
+      "priority": 3
+    },
+    {
+      "id": "impress-watch",
+      "name": "Impress Watch",
+      "homepageUrl": "https://www.watch.impress.co.jp/",
+      "feedUrl": "https://www.watch.impress.co.jp/data/rss/1.0/ipw/feed.rdf",
+      "categories": [
+        "technology"
+      ],
+      "enabled": false,
+      "termsUrl": "https://www.watch.impress.co.jp/guide/index.htm",
+      "reviewedAt": "2026-11-22",
+      "privateRssUseStatus": "unreviewed",
+      "aiMetadataStatus": "unreviewed",
+      "openQuestions": [
+        "RSS 専用の利用条件が見つからない。サイトの利用案内は「許可なく複製、転用、販売などの二次利用を行なうことを禁じます」「コンテンツの内容を改変することは一切認めておりません」とし、RSS のタイトル・リンクの私的な保存・表示が「複製」に当たるか不明。",
+        "INTERNET Watch・クラウド Watch のフィードは応答を確認したが、各サイトの RSS 案内ページは未確認。"
+      ],
+      "attributionText": "出典: Impress Watch",
+      "priority": 3
+    },
+    {
+      "id": "aws-whats-new",
+      "name": "AWS What's New",
+      "homepageUrl": "https://aws.amazon.com/new/",
+      "feedUrl": "https://aws.amazon.com/about-aws/whats-new/recent/feed/",
+      "categories": [
+        "technology"
+      ],
+      "enabled": false,
+      "termsUrl": "https://aws.amazon.com/terms/",
+      "reviewedAt": "2026-11-22",
+      "privateRssUseStatus": "unreviewed",
+      "aiMetadataStatus": "unreviewed",
+      "openQuestions": [
+        "AWS Site Terms は個人利用を認める一方で「any use of data mining, robots, or similar data gathering and extraction tools」を許諾の範囲外としており、RSS の日次自動取得がこれに当たるか不明。RSS 専用の条件は見つからない。",
+        "「not to download (other than page caching)」に、タイトル・リンクの保存が当たるか不明。"
+      ],
+      "attributionText": "Source: AWS What's New",
+      "priority": 3
+    },
+    {
+      "id": "aws-blog-jp",
+      "name": "Amazon Web Services ブログ（日本語）",
+      "homepageUrl": "https://aws.amazon.com/jp/blogs/news/",
+      "feedUrl": "https://aws.amazon.com/jp/blogs/news/feed/",
+      "categories": [
+        "technology"
+      ],
+      "enabled": false,
+      "termsUrl": "https://aws.amazon.com/terms/",
+      "reviewedAt": "2026-11-22",
+      "privateRssUseStatus": "unreviewed",
+      "aiMetadataStatus": "unreviewed",
+      "openQuestions": [
+        "AWS What's New と同じ（Site Terms の robots・data gathering 条項の扱いが不明）。日本語サイト固有の条件は未確認。"
+      ],
+      "attributionText": "出典: Amazon Web Services ブログ",
+      "priority": 3
+    },
+    {
+      "id": "azure-updates",
+      "name": "Azure Updates",
+      "homepageUrl": "https://azure.microsoft.com/en-us/updates",
+      "feedUrl": "https://www.microsoft.com/releasecommunications/api/v2/azure/rss",
+      "categories": [
+        "technology"
+      ],
+      "enabled": false,
+      "termsUrl": "https://www.microsoft.com/en-us/legal/terms-of-use",
+      "reviewedAt": "2026-11-22",
+      "privateRssUseStatus": "unreviewed",
+      "aiMetadataStatus": "unreviewed",
+      "openQuestions": [
+        "Microsoft Terms of Use は「personal and non-commercial use」としつつ「You may not modify, copy, distribute, transmit, display … any information … obtained from the Services」とし、Documents の許諾はホワイトペーパー等に限られる。RSS のタイトル保存・表示がどちらに当たるか不明。RSS 専用の条件は見つからない。"
+      ],
+      "attributionText": "Source: Microsoft Azure Updates",
+      "priority": 3
+    },
+    {
+      "id": "google-cloud-blog",
+      "name": "Google Cloud Blog",
+      "homepageUrl": "https://cloud.google.com/blog/",
+      "feedUrl": "https://cloudblog.withgoogle.com/rss/",
+      "categories": [
+        "technology"
+      ],
+      "enabled": false,
+      "termsUrl": "https://policies.google.com/terms",
+      "reviewedAt": "2026-11-22",
+      "privateRssUseStatus": "unreviewed",
+      "aiMetadataStatus": "unreviewed",
+      "openQuestions": [
+        "ブログのフッターの「Terms」は Google 利用規約を指し、ブログ記事のライセンス（開発者ドキュメントの CC BY 4.0 が適用されるか）は確認できなかった。",
+        "Google Cloud のリリースノート（https://cloud.google.com/feeds/gcp-release-notes.xml）は CC BY 4.0 の表記を確認したが、フィードの各項目のタイトルが日付のみで一覧の用途に合わないため候補から外した。"
+      ],
+      "attributionText": "Source: Google Cloud Blog",
+      "priority": 3
+    },
+    {
+      "id": "openai-news",
       "name": "OpenAI News",
+      "homepageUrl": "https://openai.com/news/",
       "feedUrl": "https://openai.com/news/rss.xml",
+      "categories": [
+        "technology"
+      ],
       "enabled": false,
-      "defaultCategory": "technology",
-      "priority": 2,
-      "terms": {
-        "url": null,
-        "checkedAt": null,
-        "summary": "未確認。フィードの応答は 2026-11-21 に確認（以前の構成時）。利用規約・RSS の利用条件は確認していない。",
-        "fetch": {
-          "status": "unknown"
-        },
-        "display": {
-          "status": "unknown"
-        },
-        "aiMetadata": {
-          "status": "unknown"
-        },
-        "fullText": {
-          "status": "unknown"
-        }
-      }
-    },
-    {
-      "id": "google-ai",
-      "name": "Google The Keyword（AI）",
-      "feedUrl": "https://blog.google/technology/ai/rss/",
-      "enabled": false,
-      "defaultCategory": "technology",
-      "priority": 2,
-      "terms": {
-        "url": null,
-        "checkedAt": null,
-        "summary": "未確認。フィードの応答は 2026-11-21 に確認（以前の構成時）。利用規約・RSS の利用条件は確認していない。",
-        "fetch": {
-          "status": "unknown"
-        },
-        "display": {
-          "status": "unknown"
-        },
-        "aiMetadata": {
-          "status": "unknown"
-        },
-        "fullText": {
-          "status": "unknown"
-        }
-      }
+      "termsUrl": "https://openai.com/policies/terms-of-use",
+      "reviewedAt": "2026-11-22",
+      "privateRssUseStatus": "unreviewed",
+      "aiMetadataStatus": "unreviewed",
+      "openQuestions": [
+        "Terms of Use は「Services」に関連するウェブサイトを含め「Automatically or programmatically extract data」を禁止しており、ニュースの RSS の自動取得がこれに当たるか不明。ニュースのコンテンツの利用条件は見つからない。"
+      ],
+      "attributionText": "Source: OpenAI News",
+      "priority": 3
     },
     {
       "id": "github-blog",
-      "name": "GitHub Blog",
+      "name": "The GitHub Blog",
+      "homepageUrl": "https://github.blog/",
       "feedUrl": "https://github.blog/feed/",
+      "categories": [
+        "technology"
+      ],
       "enabled": false,
-      "defaultCategory": "technology",
-      "priority": 3,
-      "terms": {
-        "url": null,
-        "checkedAt": null,
-        "summary": "未確認。フィードの応答は 2026-11-21 に確認（以前の構成時）。利用規約・RSS の利用条件は確認していない。",
-        "fetch": {
-          "status": "unknown"
-        },
-        "display": {
-          "status": "unknown"
-        },
-        "aiMetadata": {
-          "status": "unknown"
-        },
-        "fullText": {
-          "status": "unknown"
-        }
-      }
+      "termsUrl": "https://docs.github.com/en/site-policy/github-terms/github-terms-of-service",
+      "reviewedAt": "2026-11-22",
+      "privateRssUseStatus": "unreviewed",
+      "aiMetadataStatus": "unreviewed",
+      "openQuestions": [
+        "フッターの Terms は GitHub Terms of Service を指すが、その「Website」の定義（github.com と github.com のサブドメイン）に github.blog が含まれるか不明。ブログ記事のライセンス表記はない。"
+      ],
+      "attributionText": "Source: The GitHub Blog",
+      "priority": 3
+    }
+  ],
+  "manualLinks": [
+    {
+      "id": "jilpt",
+      "name": "JILPT 労働政策研究・研修機構",
+      "url": "https://www.jil.go.jp/",
+      "categories": [
+        "employment"
+      ],
+      "note": "公式 RSS が見つからないため手動リンクのみ（スクレイピングしない）。サイトポリシーは無断の複写・複製・転載を禁止。"
+    },
+    {
+      "id": "meti-press",
+      "name": "経済産業省 ニュースリリース",
+      "url": "https://www.meti.go.jp/press/index.html",
+      "categories": [
+        "policy",
+        "ownership"
+      ],
+      "note": "RSS 配信が調整中で停止しているため手動リンクのみ（スクレイピングしない）。コンテンツは PDL1.0。"
+    },
+    {
+      "id": "jftc",
+      "name": "公正取引委員会",
+      "url": "https://www.jftc.go.jp/",
+      "categories": [
+        "ownership",
+        "policy"
+      ],
+      "note": "公式 RSS が見つからないため手動リンクのみ（スクレイピングしない）。コンテンツは PDL1.0。"
+    },
+    {
+      "id": "ec-digital-strategy",
+      "name": "European Commission: Shaping Europe's digital future",
+      "url": "https://digital-strategy.ec.europa.eu/en/news",
+      "categories": [
+        "policy",
+        "technology"
+      ],
+      "note": "ニュース一覧に公式 RSS が見つからないため手動リンクのみ。欧州委員会のコンテンツは CC BY 4.0（第三者のコンテンツ・ロゴを除く）。"
     }
   ]
 }

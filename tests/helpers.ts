@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import type { AssessInput, Assessor } from "../src/batch/assess";
 import { InterestsFileSchema, loadBatchEnv, SourceSchema, type Source } from "../src/batch/config";
-import type { FeedFetcher, FeedItem } from "../src/batch/feed";
+import type { FeedFetcher, FeedItem, Validators } from "../src/batch/feed";
 import { FsStorage, type Storage } from "../src/shared/storage";
 
 export function tmpStorage(): { dir: string; storage: FsStorage } {
@@ -20,27 +20,35 @@ export const interests = InterestsFileSchema.parse({
   ],
 });
 
-type Perm = "allowed" | "conditional" | "prohibited" | "unknown";
+type Perm = "allowed" | "conditional" | "prohibited" | "unreviewed";
 
-/** 取得・表示・AI 送信の可否を指定して情報源を作る（既定はすべて許可・有効） */
-export function source(id: string, opts: { priority?: number; fetch?: Perm; display?: Perm; ai?: Perm; enabled?: boolean } = {}): Source {
-  const p = (s: Perm) => (s === "conditional" ? { status: s, note: "条件" } : { status: s });
+/** RSS の私的利用・AI 送信の可否を指定して情報源を作る（既定はどちらも許可・有効） */
+export function source(
+  id: string,
+  opts: { priority?: number; rss?: Perm; ai?: Perm; enabled?: boolean; pending?: "privateRss" | "aiMetadata"; extra?: Record<string, unknown> } = {},
+): Source {
+  const rss = opts.rss ?? "allowed";
+  const ai = opts.ai ?? "allowed";
+  const conditions: unknown[] = [];
+  if (rss === "conditional") conditions.push({ appliesTo: "privateRss", kind: "implemented", text: "条件" });
+  if (ai === "conditional") conditions.push({ appliesTo: "aiMetadata", kind: "implemented", text: "条件" });
+  if (opts.pending) conditions.push({ appliesTo: opts.pending, kind: "userConfirmation", text: "確認待ち" });
   return SourceSchema.parse({
     id,
     name: `Source ${id}`,
+    homepageUrl: `https://${id}.example.com/`,
     feedUrl: `https://${id}.example.com/feed`,
     enabled: opts.enabled ?? true,
-    defaultCategory: "technology",
+    categories: ["technology"],
     priority: opts.priority ?? 1,
-    terms: {
-      url: "https://example.com/terms",
-      checkedAt: "2026-11-20",
-      summary: "test",
-      fetch: p(opts.fetch ?? "allowed"),
-      display: p(opts.display ?? "allowed"),
-      aiMetadata: p(opts.ai ?? "allowed"),
-      fullText: { status: "unknown" },
-    },
+    termsUrl: "https://example.com/terms",
+    reviewedAt: "2026-11-20",
+    privateRssUseStatus: rss,
+    aiMetadataStatus: ai,
+    basis: { privateRss: "test", aiMetadata: "test" },
+    conditions,
+    attributionText: `出典: Source ${id}`,
+    ...opts.extra,
   });
 }
 
@@ -54,16 +62,23 @@ export function feedItem(n: number, hoursAgo: number, now: Date, opts: Partial<F
   };
 }
 
-/** 取得元ごとの結果を返す偽フェッチャー。Error を入れるとその取得元は失敗する。呼ばれた ID を記録する */
-export function fakeFetcher(map: Record<string, FeedItem[] | Error>): FeedFetcher & { called: string[] } {
+/**
+ * 取得元ごとの結果を返す偽フェッチャー。Error を入れるとその取得元は失敗する。"304" は変更なし応答。
+ * 呼ばれた ID と、渡された検証値（条件付き GET）を記録する
+ */
+export function fakeFetcher(map: Record<string, FeedItem[] | Error | "304">): FeedFetcher & { called: string[]; validators: Record<string, Validators | undefined> } {
   const called: string[] = [];
-  const f = (async (s: Source) => {
+  const validators: Record<string, Validators | undefined> = {};
+  const f = (async (s: Source, _o: unknown, prev?: Validators) => {
     called.push(s.id);
+    validators[s.id] = prev;
     const v = map[s.id];
+    if (v === "304") return { notModified: true, validators: { etag: prev?.etag ?? "\"e1\"" } };
     if (v === undefined || v instanceof Error) throw v ?? new Error("not found");
-    return v;
-  }) as unknown as FeedFetcher & { called: string[] };
+    return { notModified: false, items: v, validators: { etag: "\"e1\"", lastModified: "Sat, 21 Nov 2026 00:00:00 GMT" } };
+  }) as unknown as FeedFetcher & { called: string[]; validators: Record<string, Validators | undefined> };
   f.called = called;
+  f.validators = validators;
   return f;
 }
 

@@ -25,7 +25,15 @@ export interface FetchOptions {
   allowFileFeeds: boolean;
 }
 
-export type FeedFetcher = (source: Source, opts: FetchOptions) => Promise<FeedItem[]>;
+/** 前回の応答の検証値（条件付き GET 用） */
+export interface Validators {
+  etag?: string;
+  lastModified?: string;
+}
+
+export type FetchResult = { notModified: true; validators: Validators } | { notModified: false; items: FeedItem[]; validators: Validators };
+
+export type FeedFetcher = (source: Source, opts: FetchOptions, previous?: Validators) => Promise<FetchResult>;
 
 function detectEncoding(bytes: Uint8Array, contentType: string | null): string {
   const head = new TextDecoder("ascii").decode(bytes.slice(0, 200));
@@ -44,12 +52,16 @@ export function decodeFeed(bytes: Uint8Array, contentType: string | null): strin
 }
 
 /** RSS を取得する。https のみ・内部アドレス不可・リダイレクト先も検査（net.ts）。認証や有料制限は回避しない。 */
-export const fetchFeed: FeedFetcher = async (source, opts) => {
+export const fetchFeed: FeedFetcher = async (source, opts, previous) => {
   if (source.feedUrl.startsWith("file:")) {
     // ローカルのサンプルフィード専用。Lambda では ALLOW_FILE_FEEDS を設定しない
     if (!opts.allowFileFeeds) throw new Error("file: feeds are disabled");
     const p = source.feedUrl.startsWith("file:///") ? fileURLToPath(source.feedUrl) : source.feedUrl.replace(/^file:/, "");
-    return parseFeed(decodeFeed(await readFile(p), null));
+    // エラーにローカルのパスを含めない（画面の取得エラー表示に出るため）
+    const bytes = await readFile(p).catch(() => {
+      throw new Error("local feed file not readable");
+    });
+    return { notModified: false, items: parseFeed(decodeFeed(bytes, null)), validators: {} };
   }
   const res = await safeFetch(source.feedUrl, {
     timeoutMs: opts.timeoutMs,
@@ -57,9 +69,17 @@ export const fetchFeed: FeedFetcher = async (source, opts) => {
     maxRedirects: opts.maxRedirects,
     userAgent: opts.userAgent,
     accept: "application/rss+xml, application/atom+xml, application/xml, text/xml;q=0.9",
+    ifNoneMatch: previous?.etag,
+    ifModifiedSince: previous?.lastModified,
   });
-  return parseFeed(decodeFeed(res.body, res.contentType));
+  const validators: Validators = { etag: res.etag, lastModified: res.lastModified };
+  if (res.status === 304) return { notModified: true, validators: { ...previous, ...stripUndefined(validators) } };
+  return { notModified: false, items: parseFeed(decodeFeed(res.body, res.contentType)), validators };
 };
+
+function stripUndefined<T extends object>(o: T): Partial<T> {
+  return Object.fromEntries(Object.entries(o).filter(([, v]) => v !== undefined)) as Partial<T>;
+}
 
 const parser = new XMLParser({
   ignoreAttributes: false,
@@ -69,6 +89,8 @@ const parser = new XMLParser({
   processEntities: true,
   htmlEntities: true,
   isArray: (name) => ["item", "entry", "link", "category", "dc:subject"].includes(name),
+  // 本文・説明文は使わない。中身を解析せず文字列のまま捨てる（保存・ログ出力・AI 送信しない）
+  stopNodes: ["*.description", "*.content", "*.summary", "*.content:encoded"],
 });
 
 function text(v: unknown): string {

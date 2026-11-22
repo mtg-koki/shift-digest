@@ -1,6 +1,6 @@
 import { createStorageFromEnv } from "../shared/storage";
 import { createAssessor } from "./assess";
-import { loadBatchEnv, loadInterests, loadSources, sourcePolicy, type BatchEnv } from "./config";
+import { loadBatchEnv, loadInterests, loadSourcesFile, sourcePolicy, type BatchEnv } from "./config";
 import { fetchFeed } from "./feed";
 import { runDaily, type RunOutcome } from "./run";
 
@@ -20,7 +20,7 @@ export async function runFromEnv(opts: RunOptions): Promise<RunOutcome> {
     opts.maxRuntimeMs !== undefined
       ? { ...loaded, BATCH_MAX_RUNTIME_MS: Math.max(10_000, Math.min(loaded.BATCH_MAX_RUNTIME_MS, opts.maxRuntimeMs)) }
       : loaded;
-  const sources = await loadSources(opts.sourcesFile ?? env.SOURCES_FILE);
+  const { sources, manualLinks } = await loadSourcesFile(opts.sourcesFile ?? env.SOURCES_FILE);
   const interests = await loadInterests(env.INTERESTS_FILE);
   const assessor = createAssessor(env);
   console.log(
@@ -33,7 +33,7 @@ export async function runFromEnv(opts: RunOptions): Promise<RunOutcome> {
       maxRuntimeMs: env.BATCH_MAX_RUNTIME_MS,
     }),
   );
-  const outcome = await runDaily({ storage: createStorageFromEnv(raw), fetcher: fetchFeed, assessor, sources, interests, env, force: opts.force });
+  const outcome = await runDaily({ storage: createStorageFromEnv(raw), fetcher: fetchFeed, assessor, sources, manualLinks, interests, env, force: opts.force });
   console.log(JSON.stringify({ msg: "batch end", ...outcome }));
   return outcome;
 }

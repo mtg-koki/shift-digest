@@ -4,118 +4,155 @@ import { z } from "zod";
 import { CategoryIdSchema, JstDateSchema } from "../shared/schema";
 
 /**
- * 利用条件の状態。
- * - allowed:     規約等で明示的に認められている（根拠を note / 規約 URL に残す）
- * - conditional: 条件付きで認められており、その条件を満たす運用にしている（条件を note に書く）
- * - prohibited:  禁止されている
- * - unknown:     未確認、または規約に明記がなく判断できない（許可とは扱わない。禁止と断定もしない）
- * 処理してよいのは allowed / conditional のみ。
+ * 利用条件の判断。「RSS の私的利用（取得・保存・自分専用画面への表示）」と「AI へのメタデータ送信」を別々に持つ。
+ * - allowed:     規約・ライセンス等が今回の利用方法をカバーしている（根拠を basis に記録）
+ * - conditional: 条件付きで認められ、条件を満たす運用にしている（条件を conditions に記録）
+ * - prohibited:  禁止が明確
+ * - unreviewed:  未確認、または今回の利用方法に当たるか判断できない（許可とは扱わない。不明点を openQuestions に書く）
+ * 処理してよいのは allowed / conditional のみ。規約上の判断であり、技術的に取得できるかどうかとは別。
  */
-export const PermissionStatusSchema = z.enum(["allowed", "conditional", "prohibited", "unknown"]);
-export type PermissionStatus = z.infer<typeof PermissionStatusSchema>;
+export const UseStatusSchema = z.enum(["allowed", "conditional", "prohibited", "unreviewed"]);
+export type UseStatus = z.infer<typeof UseStatusSchema>;
 
-const PermissionSchema = z.object({
-  status: PermissionStatusSchema.default("unknown"),
-  note: z.string().max(500).optional(),
-});
+export function isPermitted(s: UseStatus): boolean {
+  return s === "allowed" || s === "conditional";
+}
 
-export const TermsSchema = z.object({
-  /** 利用規約・RSS 利用条件のページ */
-  url: z.string().url().nullable().default(null),
-  /** 条件を確認した日（YYYY-MM-DD） */
-  checkedAt: JstDateSchema.nullable().default(null),
-  /** 条件の要点（自分で確認した内容。推測で書かない） */
-  summary: z.string().max(1000).default(""),
-  /** RSS の自動取得（1 日 1 回） */
-  fetch: PermissionSchema.default({ status: "unknown" }),
-  /** 自作の非公開画面へのタイトル・リンクの表示 */
-  display: PermissionSchema.default({ status: "unknown" }),
-  /** AI（Amazon Bedrock）へのタイトル等メタデータの送信 */
-  aiMetadata: PermissionSchema.default({ status: "unknown" }),
-  /** 本文の取得・要約（未実装。将来の拡張用） */
-  fullText: PermissionSchema.default({ status: "unknown" }),
-  /** 出典表記等の必要事項（画面に表示する） */
-  attribution: z.string().max(300).optional(),
+const ScopeSchema = z.enum(["privateRss", "aiMetadata"]);
+export type Scope = z.infer<typeof ScopeSchema>;
+
+/**
+ * 条件。
+ * - implemented: 実装・運用で満たしている条件（例: 出典表示、本文を保存しない、認証で非公開）
+ * - userConfirmation: ユーザーが確認・判断する必要がある条件。confirmedAt が入るまでその用途では処理しない
+ */
+export const ConditionSchema = z.object({
+  appliesTo: ScopeSchema,
+  kind: z.enum(["implemented", "userConfirmation"]),
+  text: z.string().min(1).max(400),
+  confirmedAt: JstDateSchema.nullable().default(null),
 });
-export type Terms = z.infer<typeof TermsSchema>;
+export type Condition = z.infer<typeof ConditionSchema>;
+
+const httpsUrl = z.string().url().refine((u) => /^https:\/\//.test(u), "https only");
 
 export const SourceSchema = z
   .object({
     id: z.string().regex(/^[a-z0-9-]+$/),
     name: z.string().min(1).max(100),
-    /** RSS 1.0 / RSS 2.0 / Atom。https のみ（file: はローカル検証用で ALLOW_FILE_FEEDS=true のときだけ） */
+    homepageUrl: httpsUrl,
+    /** 公式の RSS 1.0 / RSS 2.0 / Atom。https のみ（file: はローカル検証用で ALLOW_FILE_FEEDS=true のときだけ） */
     feedUrl: z.string().url(),
+    /** 分類（先頭が評価のない記事の表示分類） */
+    categories: z.array(CategoryIdSchema).min(1).max(4),
     /** 既定は無効。利用条件を確認してから有効にする */
     enabled: z.boolean().default(false),
-    /** 評価がない場合の分類 */
-    defaultCategory: CategoryIdSchema,
+    /** 判断の根拠にした規約・ライセンス・案内ページ */
+    termsUrl: httpsUrl.nullable().default(null),
+    /** 確認日（YYYY-MM-DD） */
+    reviewedAt: JstDateSchema.nullable().default(null),
+    privateRssUseStatus: UseStatusSchema.default("unreviewed"),
+    aiMetadataStatus: UseStatusSchema.default("unreviewed"),
+    /** allowed / conditional の根拠（短く。確認した内容だけを書く） */
+    basis: z.object({ privateRss: z.string().max(500).optional(), aiMetadata: z.string().max(500).optional() }).default({}),
+    conditions: z.array(ConditionSchema).max(20).default([]),
+    /** 未確認事項（どの条項がどう不明か） */
+    openQuestions: z.array(z.string().max(400)).max(20).default([]),
+    /** 画面に表示する出典表記 */
+    attributionText: z.string().max(300).default(""),
     /** 小さいほど優先（同一タイトルの重複時の代表選び・同点時の順序） */
     priority: z.number().int().min(1).max(9).default(5),
+    /** 1 回の取得で扱う最大件数（既定 MAX_ITEMS_PER_SOURCE） */
     maxItems: z.number().int().min(1).max(100).optional(),
-    terms: TermsSchema.default({
-      url: null,
-      checkedAt: null,
-      summary: "",
-      fetch: { status: "unknown" },
-      display: { status: "unknown" },
-      aiMetadata: { status: "unknown" },
-      fullText: { status: "unknown" },
-    }),
+    /** 取得間隔の下限（時間）。媒体の条件があればそれに合わせる（既定は日次バッチと同じ） */
+    minFetchIntervalHours: z.number().int().min(1).max(24 * 30).optional(),
+    /** 一覧に残す日数（既定 FEED_RETENTION_DAYS）。媒体の条件があればそれに合わせる */
+    retentionDays: z.number().int().min(1).max(365).optional(),
   })
   .superRefine((s, ctx) => {
-    const t = s.terms;
-    const granted = (["fetch", "display", "aiMetadata", "fullText"] as const).filter((k) => isPermitted(t[k].status));
-    // 許可・条件付きとするなら、根拠（規約 URL と確認日）を必須にする
-    if (granted.length > 0 && (!t.url || !t.checkedAt)) {
-      ctx.addIssue({ code: "custom", message: `${s.id}: terms.url and terms.checkedAt are required when ${granted.join(", ")} is allowed/conditional` });
-    }
-    for (const k of granted) {
-      if (t[k].status === "conditional" && !t[k].note) {
-        ctx.addIssue({ code: "custom", message: `${s.id}: terms.${k}.note is required for conditional` });
+    for (const scope of ScopeSchema.options) {
+      const status = scope === "privateRss" ? s.privateRssUseStatus : s.aiMetadataStatus;
+      if (!isPermitted(status)) continue;
+      // 許可・条件付きとするなら、根拠（ページ・確認日・根拠の要約）を必須にする
+      if (!s.termsUrl || !s.reviewedAt) ctx.addIssue({ code: "custom", message: `${s.id}: termsUrl and reviewedAt are required when ${scope} is ${status}` });
+      if (!s.basis[scope]) ctx.addIssue({ code: "custom", message: `${s.id}: basis.${scope} is required when ${scope} is ${status}` });
+      if (status === "conditional" && !s.conditions.some((c) => c.appliesTo === scope)) {
+        ctx.addIssue({ code: "custom", message: `${s.id}: conditions for ${scope} are required when conditional` });
       }
+    }
+    // AI 送信は RSS の私的利用が認められていることが前提
+    if (isPermitted(s.aiMetadataStatus) && !isPermitted(s.privateRssUseStatus)) {
+      ctx.addIssue({ code: "custom", message: `${s.id}: aiMetadata cannot be permitted while privateRss is not` });
     }
   });
 export type Source = z.infer<typeof SourceSchema>;
 
-export function isPermitted(s: PermissionStatus): boolean {
-  return s === "allowed" || s === "conditional";
-}
+export const defaultCategory = (s: Pick<Source, "categories">) => s.categories[0]!;
+
+/** RSS がない（または初期版で扱わない）媒体の手動リンク。スクレイピングしない */
+export const ManualLinkSchema = z.object({
+  id: z.string().regex(/^[a-z0-9-]+$/),
+  name: z.string().min(1).max(100),
+  url: httpsUrl,
+  categories: z.array(CategoryIdSchema).min(1).max(4),
+  note: z.string().max(300).default(""),
+});
+export type ManualLink = z.infer<typeof ManualLinkSchema>;
 
 export interface SourcePolicy {
-  /** RSS を取得するか（有効かつ 取得・表示の両方が許可/条件付き） */
+  /** RSS を取得・保存・表示するか */
   fetch: boolean;
-  /** タイトル等を AI に送るか（上記に加え AI 送信が許可/条件付き） */
+  /** タイトル等を AI に送るか（上記に加え AI 送信が認められ、確認待ちの条件がない） */
   ai: boolean;
   /** 処理しない・AI に送らない理由（ログ・画面用） */
   reasons: string[];
 }
 
-/** 情報源ごとの処理可否。未確認は許可と扱わない。 */
+const pendingConfirmations = (s: Source, scope: Scope) => s.conditions.filter((c) => c.appliesTo === scope && c.kind === "userConfirmation" && !c.confirmedAt);
+
+/** 情報源ごとの処理可否。未確認は許可と扱わない。ユーザー確認待ちの条件が残っていれば処理しない。 */
 export function sourcePolicy(s: Source): SourcePolicy {
   const reasons: string[] = [];
   if (!s.enabled) reasons.push("disabled");
-  if (!isPermitted(s.terms.fetch.status)) reasons.push(`fetch:${s.terms.fetch.status}`);
-  if (!isPermitted(s.terms.display.status)) reasons.push(`display:${s.terms.display.status}`);
+  if (!isPermitted(s.privateRssUseStatus)) reasons.push(`privateRss:${s.privateRssUseStatus}`);
+  if (pendingConfirmations(s, "privateRss").length) reasons.push("privateRss:awaiting-user-confirmation");
   const fetch = reasons.length === 0;
-  if (fetch && !isPermitted(s.terms.aiMetadata.status)) reasons.push(`aiMetadata:${s.terms.aiMetadata.status}`);
-  return { fetch, ai: fetch && isPermitted(s.terms.aiMetadata.status), reasons };
+  let ai = false;
+  if (fetch) {
+    if (!isPermitted(s.aiMetadataStatus)) reasons.push(`aiMetadata:${s.aiMetadataStatus}`);
+    else if (pendingConfirmations(s, "aiMetadata").length) reasons.push("aiMetadata:awaiting-user-confirmation");
+    else ai = true;
+  }
+  return { fetch, ai, reasons };
 }
 
-export const SourcesFileSchema = z.object({ sources: z.array(SourceSchema) });
+export const SourcesFileSchema = z.object({
+  sources: z.array(SourceSchema),
+  manualLinks: z.array(ManualLinkSchema).default([]),
+});
+export type SourcesFile = z.infer<typeof SourcesFileSchema>;
 
 /** 情報源の設定を読む（無効なものも含めて返す。処理可否は sourcePolicy で判断） */
-export async function loadSources(path: string): Promise<Source[]> {
-  return parseSources(JSON.parse(await readFile(path, "utf8")));
+export async function loadSourcesFile(path: string): Promise<SourcesFile> {
+  return parseSourcesFile(JSON.parse(await readFile(path, "utf8")));
 }
 
-export function parseSources(raw: unknown): Source[] {
-  const parsed = SourcesFileSchema.parse(raw).sources;
+export function parseSourcesFile(raw: unknown): SourcesFile {
+  const parsed = SourcesFileSchema.parse(raw);
   const ids = new Set<string>();
-  for (const s of parsed) {
+  for (const s of [...parsed.sources, ...parsed.manualLinks]) {
     if (ids.has(s.id)) throw new Error(`duplicate source id: ${s.id}`);
     ids.add(s.id);
   }
   return parsed;
+}
+
+export function parseSources(raw: unknown): Source[] {
+  return parseSourcesFile(raw).sources;
+}
+
+export async function loadSources(path: string): Promise<Source[]> {
+  return (await loadSourcesFile(path)).sources;
 }
 
 // ---------------- 関心テーマ ----------------
@@ -176,9 +213,9 @@ export const BatchEnvSchema = z.object({
   MAX_RECOMMENDATIONS_PER_SOURCE: int(2, 1, 20),
   /** 読む候補にする関心度スコアの下限（0〜100） */
   MIN_RELEVANCE_SCORE: int(60, 0, 100),
-  /** 取得・選定対象期間（時間） */
+  /** 読む候補・AI 評価の対象期間（時間）。一覧は FEED_RETENTION_DAYS */
   LOOKBACK_HOURS: int(48, 1, 24 * 14),
-  /** 公開日時のない記事を新着として扱うか（初回の大量取り込みを避けるため既定 false） */
+  /** 公開日時のない記事を読む候補・AI 評価の対象にするか（一覧には常に載せる） */
   INCLUDE_UNDATED: bool(false),
   MAX_ITEMS_PER_SOURCE: int(30, 1, 100),
   FEED_TIMEOUT_MS: int(15000, 1000, 60000),
@@ -189,6 +226,10 @@ export const BatchEnvSchema = z.object({
   ALLOW_FILE_FEEDS: bool(false),
   BATCH_MAX_RUNTIME_MS: int(780_000, 10_000, 3_600_000),
   STATE_RETENTION_DAYS: int(120, 7, 3650),
+  /** 一覧（feed.json）に残す日数（情報源の retentionDays が優先） */
+  FEED_RETENTION_DAYS: int(30, 1, 365),
+  /** 一覧（feed.json）に残す最大件数（新しい順） */
+  FEED_MAX_ARTICLES: int(2000, 50, 20000),
   SOURCES_FILE: z.string().default("config/sources.json"),
   INTERESTS_FILE: z.string().default("config/interests.json"),
 });

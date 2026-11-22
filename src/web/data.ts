@@ -2,10 +2,12 @@ import type { z } from "zod";
 import {
   DailyReportSchema,
   DigestIndexSchema,
+  FeedSnapshotSchema,
   LastRunSchema,
   STORAGE_KEYS,
   type DailyReport,
   type DigestIndex,
+  type FeedSnapshot,
   type LastRun,
 } from "../shared/schema";
 import type { ReadableStore } from "../shared/storage/types";
@@ -26,6 +28,12 @@ export type ReportView =
 
 export type ArchiveView =
   | { kind: "ok"; index: DigestIndex; status: RunStatus }
+  | { kind: "no-data"; status: RunStatus }
+  | { kind: "error"; message: string };
+
+/** 自分用 RSS リーダーの一覧。読む候補（最新の日次データ）は任意で、読めなくても一覧は表示する */
+export type FeedView =
+  | { kind: "ok"; feed: FeedSnapshot; latest: DailyReport | null; status: RunStatus }
   | { kind: "no-data"; status: RunStatus }
   | { kind: "error"; message: string };
 
@@ -87,6 +95,18 @@ export class DigestReader {
       const report = await this.cached(STORAGE_KEYS.report(index.latestDate), DailyReportSchema);
       if (!report) return { kind: "error", message: "最新の日次データが見つかりません" };
       return { kind: "ok", report, status };
+    } catch (e) {
+      return errorView(e);
+    }
+  }
+
+  async feed(): Promise<FeedView> {
+    try {
+      const { index, status } = await this.status();
+      const feed = await this.cached(STORAGE_KEYS.feed, FeedSnapshotSchema);
+      if (!feed) return { kind: "no-data", status };
+      const latest = index ? await this.cached(STORAGE_KEYS.report(index.latestDate), DailyReportSchema).catch(() => null) : null;
+      return { kind: "ok", feed, latest, status };
     } catch (e) {
       return errorView(e);
     }

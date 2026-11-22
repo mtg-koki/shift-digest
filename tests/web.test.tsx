@@ -1,9 +1,11 @@
 import { readFileSync } from "node:fs";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
-import { DailyReportSchema, STORAGE_KEYS } from "../src/shared/schema";
+import { DailyReportSchema, FeedSnapshotSchema, STORAGE_KEYS } from "../src/shared/schema";
 import { DigestReader } from "../src/web/data";
 import { ArchivePage, ReportPage, SavedPage } from "../src/web/components/views";
+import { ReaderPage, SourcesPage } from "../src/web/components/reader";
+import { emptyFilter, filterArticles, filterFromQuery, filterToQuery } from "../src/web/filter";
 import { applyMark, emptyMarks, parseMarks, safeHref } from "../src/web/marks";
 import { tmpStorage } from "./helpers";
 
@@ -12,6 +14,7 @@ vi.spyOn(console, "error").mockImplementation(() => undefined);
 const sampleIndex = readFileSync("sample-data/index.json", "utf8");
 const DATE = JSON.parse(sampleIndex).latestDate as string;
 const sampleReport = readFileSync(`sample-data/reports/${DATE}.json`, "utf8");
+const sampleFeed = readFileSync("sample-data/feed.json", "utf8");
 
 async function seeded(report = sampleReport) {
   const { storage } = tmpStorage();
@@ -54,12 +57,12 @@ describe("web data loading and display", () => {
   it("renders read candidates with reasons, metadata-only notice, links and the new-article list", async () => {
     const view = await new DigestReader(await seeded()).latest();
     const out = html(<ReportPage view={view} category={null} date={null} />);
-    expect(out).toContain("今日の読む候補");
+    expect(out).toContain("この日の読む候補");
     expect(out).toContain("タイトル等に基づいて");
-    expect(out).toContain("推薦理由（タイトル等から）");
+    expect(out).toContain("推薦理由（キーワード一致から作成）");
     expect(out).toContain("必読度を表すものではありません");
     expect(out).not.toMatch(/必読です|絶対に読むべき|記事要約/);
-    expect(out).toContain("新着一覧");
+    expect(out).toContain("この日の新着");
     expect(out).toContain('target="_blank" rel="noopener noreferrer"');
     expect(out).toContain("最終正常更新");
     expect(out).toContain("一部の情報源から取得できませんでした");
@@ -138,5 +141,76 @@ describe("web data loading and display", () => {
     const reader = new DigestReader(await seeded());
     expect((await reader.byDate("2026-01-01")).kind).toBe("not-found");
     expect((await reader.byDate("..%2Findex")).kind).toBe("not-found");
+  });
+});
+
+describe("RSS reader list", () => {
+  async function feedView() {
+    const storage = await seeded();
+    await storage.putText(STORAGE_KEYS.feed, sampleFeed);
+    return new DigestReader(storage).feed();
+  }
+  const noop = () => undefined;
+
+  it("sample feed matches the schema and contains only metadata", () => {
+    const feed = FeedSnapshotSchema.parse(JSON.parse(sampleFeed));
+    expect(feed.articles.length).toBeGreaterThan(5);
+    expect(sampleFeed).not.toMatch(/description|説明文/);
+  });
+
+  it("lists all articles newest first (not limited to recommendations), with sources, errors and attribution", async () => {
+    const view = await feedView();
+    expect(view.kind).toBe("ok");
+    const out = html(<ReaderPage view={view} marks={emptyMarks()} act={noop} filter={emptyFilter()} onFilter={noop} />);
+    const feed = FeedSnapshotSchema.parse(JSON.parse(sampleFeed));
+    expect(out).toContain("新着順の一覧");
+    expect(out).toContain(`${feed.articles.length}件`);
+    expect(out).toContain("今日の読む候補");
+    expect(out).toContain("取得できなかった情報源があります");
+    expect(out).toContain("出典");
+    // AI 対象外の情報源の記事も一覧に並ぶ
+    const noAi = feed.articles.find((a) => !a.aiEligible)!;
+    expect(out).toContain(noAi.title.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"));
+    expect(out).not.toContain("<script>");
+  });
+
+  it("filters by source, category, keyword (AND, width/case-insensitive), unread and hidden", () => {
+    const feed = FeedSnapshotSchema.parse(JSON.parse(sampleFeed));
+    const all = feed.articles;
+    const m = emptyMarks();
+    const src = all[0]!.sourceId;
+    expect(filterArticles(all, { ...emptyFilter(), source: src }, m).every((a) => a.sourceId === src)).toBe(true);
+    expect(filterArticles(all, { ...emptyFilter(), category: "policy" }, m).every((a) => a.category === "policy")).toBe(true);
+    const withAi = all.filter((a) => /ＡＩ|AI/i.test(a.title.normalize("NFKC")));
+    expect(filterArticles(all, { ...emptyFilter(), q: "ai" }, m)).toHaveLength(withAi.length);
+    expect(filterArticles(all, { ...emptyFilter(), q: "ai 存在しない語" }, m)).toHaveLength(0);
+    const read = applyMark(m, { type: "read", id: all[0]!.id });
+    expect(filterArticles(all, { ...emptyFilter(), unreadOnly: true }, read)).toHaveLength(all.length - 1);
+    const hidden = applyMark(m, { type: "hide", id: all[0]!.id });
+    expect(filterArticles(all, emptyFilter(), hidden)).toHaveLength(all.length - 1);
+    expect(filterArticles(all, { ...emptyFilter(), showHidden: true }, hidden)).toHaveLength(all.length);
+  });
+
+  it("round-trips filters through the URL and rejects invalid values", () => {
+    const f = { ...emptyFilter(), source: "digital", category: "policy" as const, q: "AI 規制", unreadOnly: true };
+    expect(filterFromQuery(new URL("https://x" + filterToQuery(f)).searchParams)).toEqual(f);
+    expect(filterFromQuery(new URLSearchParams("source=../x&category=evil"))).toEqual(emptyFilter());
+  });
+
+  it("shows source status (last success, error, AI target) and manual links", async () => {
+    const out = html(<SourcesPage view={await feedView()} />);
+    expect(out).toContain("情報源の状態");
+    expect(out).toContain("最終正常取得");
+    expect(out).toContain("local feed file not readable");
+    expect(out).toContain("対象外");
+    expect(out).toContain("手動リンク（RSS なし）");
+    expect(out).not.toContain("Users");
+    expect(out).not.toContain("Projects");
+  });
+
+  it("shows no-data when the feed has not been generated", async () => {
+    const { storage } = tmpStorage();
+    const out = html(<ReaderPage view={await new DigestReader(storage).feed()} marks={emptyMarks()} act={noop} filter={emptyFilter()} onFilter={noop} />);
+    expect(out).toContain("まだデータがありません");
   });
 });
