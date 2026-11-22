@@ -58,6 +58,7 @@
         }
       ],
       "openQuestions": [
+        "ユーザー判断で不採用（2026-11-23）。取得しない。",
         "説明文を保存せずタイトル・リンクだけを表示することが禁止事項の「RSSの一部削除等の改変」に当たるかは、相談の際に確認する。",
         "AI サービスへのタイトル送信は記載なし。AI 推薦の対象外とする。"
       ],
@@ -93,6 +94,7 @@
         }
       ],
       "openQuestions": [
+        "ユーザー判断で不採用（2026-11-23）。取得しない。",
         "説明文を保存せずタイトル・リンクだけを表示することが禁止事項の「RSSの一部削除等の改変」に当たるかは、相談の際に確認する。",
         "AI サービスへのタイトル送信は記載なし。AI 推薦の対象外とする。"
       ],
@@ -255,6 +257,7 @@
         }
       ],
       "openQuestions": [
+        "ユーザー判断で不採用（2026-11-23）。取得しない。",
         "フィードの記事タイトルには「 | ライフ | 東洋経済オンライン」のような接尾辞が付く。"
       ],
       "attributionText": "出典: 東洋経済オンライン",
@@ -472,24 +475,6 @@
   ],
   "manualLinks": [
     {
-      "id": "itmedia-enterprise-link",
-      "name": "ITmedia エンタープライズ",
-      "url": "https://www.itmedia.co.jp/enterprise/",
-      "categories": [
-        "cloud"
-      ],
-      "note": "RSS はあるが、利用条件でアプリへの組み込みに相談が必要なため確認待ち。"
-    },
-    {
-      "id": "itmedia-aiplus-link",
-      "name": "ITmedia AI＋",
-      "url": "https://www.itmedia.co.jp/aiplus/",
-      "categories": [
-        "ai"
-      ],
-      "note": "RSS はあるが、利用条件でアプリへの組み込みに相談が必要なため確認待ち。"
-    },
-    {
       "id": "nhk-politics",
       "name": "NHKニュース 政治",
       "url": "https://news.web.nhk/newsweb/genre/politics",
@@ -517,15 +502,6 @@
         "world"
       ],
       "note": "ロイターは 2020 年に一般向け RSS の提供をやめており、公式 RSS がないため手動リンクのみ（非公式の代替フィードは使わない）。"
-    },
-    {
-      "id": "toyokeizai-link",
-      "name": "東洋経済オンライン",
-      "url": "https://toyokeizai.net/",
-      "categories": [
-        "economy"
-      ],
-      "note": "RSS はあるが、利用規約の自動収集の禁止との関係をユーザーが判断するまで確認待ち。"
     },
     {
       "id": "bloomberg-jp",
