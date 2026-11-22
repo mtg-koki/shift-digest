@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "date": "2026-11-22",
-  "generatedAt": "2026-11-22T06:43:59.786Z",
+  "generatedAt": "2026-11-22T10:47:10.391Z",
   "status": "partial",
   "recommendations": [
     {
@@ -28,8 +28,8 @@
       "url": "https://example.com/gov/ai-guideline",
       "sourceId": "sample-policy",
       "sourceName": "【架空】サンプル官公庁",
-      "publishedAt": "2026-11-22T00:43:43.000Z",
-      "fetchedAt": "2026-11-22T06:43:59.717Z",
+      "publishedAt": "2026-11-22T04:47:07.000Z",
+      "fetchedAt": "2026-11-22T10:47:10.355Z",
       "feedCategories": [
         "報道発表"
       ],
@@ -44,7 +44,7 @@
           "provider": "rules",
           "model": null
         },
-        "assessedAt": "2026-11-22T06:43:59.717Z"
+        "assessedAt": "2026-11-22T10:47:10.355Z"
       }
     },
     {
@@ -53,8 +53,8 @@
       "url": "https://example.com/gov/dup-title",
       "sourceId": "sample-policy",
       "sourceName": "【架空】サンプル官公庁",
-      "publishedAt": "2026-11-21T23:43:43.000Z",
-      "fetchedAt": "2026-11-22T06:43:59.717Z",
+      "publishedAt": "2026-11-22T03:47:07.000Z",
+      "fetchedAt": "2026-11-22T10:47:10.355Z",
       "feedCategories": [],
       "category": "policy",
       "aiEligible": true,
@@ -67,7 +67,7 @@
           "provider": "rules",
           "model": null
         },
-        "assessedAt": "2026-11-22T06:43:59.717Z"
+        "assessedAt": "2026-11-22T10:47:10.355Z"
       }
     },
     {
@@ -76,8 +76,8 @@
       "url": "https://example.com/gov/copyright",
       "sourceId": "sample-policy",
       "sourceName": "【架空】サンプル官公庁",
-      "publishedAt": "2026-11-21T18:43:43.000Z",
-      "fetchedAt": "2026-11-22T06:43:59.717Z",
+      "publishedAt": "2026-11-21T22:47:07.000Z",
+      "fetchedAt": "2026-11-22T10:47:10.355Z",
       "feedCategories": [],
       "category": "policy",
       "aiEligible": true,
@@ -90,7 +90,7 @@
           "provider": "rules",
           "model": null
         },
-        "assessedAt": "2026-11-22T06:43:59.717Z"
+        "assessedAt": "2026-11-22T10:47:10.355Z"
       }
     },
     {
@@ -99,8 +99,8 @@
       "url": "https://example.com/tech/agent-helpdesk?utm_source=rss",
       "sourceId": "sample-tech",
       "sourceName": "【架空】サンプル技術ニュース",
-      "publishedAt": "2026-11-22T04:43:43.000Z",
-      "fetchedAt": "2026-11-22T06:43:59.717Z",
+      "publishedAt": "2026-11-22T08:47:07.000Z",
+      "fetchedAt": "2026-11-22T10:47:10.355Z",
       "feedCategories": [
         "AI"
       ],
@@ -114,8 +114,8 @@
       "url": "https://example.com/tech/smartphone",
       "sourceId": "sample-tech",
       "sourceName": "【架空】サンプル技術ニュース",
-      "publishedAt": "2026-11-22T03:43:43.000Z",
-      "fetchedAt": "2026-11-22T06:43:59.717Z",
+      "publishedAt": "2026-11-22T07:47:07.000Z",
+      "fetchedAt": "2026-11-22T10:47:10.355Z",
       "feedCategories": [],
       "category": "technology",
       "aiEligible": true,
@@ -128,7 +128,7 @@
           "provider": "rules",
           "model": null
         },
-        "assessedAt": "2026-11-22T06:43:59.717Z"
+        "assessedAt": "2026-11-22T10:47:10.355Z"
       }
     },
     {
@@ -137,8 +137,8 @@
       "url": "https://example.com/tech/xss",
       "sourceId": "sample-tech",
       "sourceName": "【架空】サンプル技術ニュース",
-      "publishedAt": "2026-11-22T02:43:43.000Z",
-      "fetchedAt": "2026-11-22T06:43:59.717Z",
+      "publishedAt": "2026-11-22T06:47:07.000Z",
+      "fetchedAt": "2026-11-22T10:47:10.355Z",
       "feedCategories": [],
       "category": "technology",
       "aiEligible": true,
@@ -151,7 +151,7 @@
           "provider": "rules",
           "model": null
         },
-        "assessedAt": "2026-11-22T06:43:59.717Z"
+        "assessedAt": "2026-11-22T10:47:10.355Z"
       }
     },
     {
@@ -160,8 +160,8 @@
       "url": "https://example.com/tech/terraform-case",
       "sourceId": "sample-tech",
       "sourceName": "【架空】サンプル技術ニュース",
-      "publishedAt": "2026-11-22T01:43:43.000Z",
-      "fetchedAt": "2026-11-22T06:43:59.717Z",
+      "publishedAt": "2026-11-22T05:47:07.000Z",
+      "fetchedAt": "2026-11-22T10:47:10.355Z",
       "feedCategories": [
         "Cloud"
       ],
@@ -176,7 +176,7 @@
           "provider": "rules",
           "model": null
         },
-        "assessedAt": "2026-11-22T06:43:59.717Z"
+        "assessedAt": "2026-11-22T10:47:10.355Z"
       }
     },
     {
@@ -185,8 +185,8 @@
       "url": "https://example.com/tech/injection",
       "sourceId": "sample-tech",
       "sourceName": "【架空】サンプル技術ニュース",
-      "publishedAt": "2026-11-22T00:43:43.000Z",
-      "fetchedAt": "2026-11-22T06:43:59.717Z",
+      "publishedAt": "2026-11-22T04:47:07.000Z",
+      "fetchedAt": "2026-11-22T10:47:10.355Z",
       "feedCategories": [],
       "category": "technology",
       "aiEligible": true,
@@ -199,7 +199,7 @@
           "provider": "rules",
           "model": null
         },
-        "assessedAt": "2026-11-22T06:43:59.717Z"
+        "assessedAt": "2026-11-22T10:47:10.355Z"
       }
     },
     {
@@ -208,8 +208,8 @@
       "url": "https://example.com/tech/genai-adoption",
       "sourceId": "sample-tech",
       "sourceName": "【架空】サンプル技術ニュース",
-      "publishedAt": "2026-11-21T22:43:43.000Z",
-      "fetchedAt": "2026-11-22T06:43:59.717Z",
+      "publishedAt": "2026-11-22T02:47:07.000Z",
+      "fetchedAt": "2026-11-22T10:47:10.355Z",
       "feedCategories": [],
       "category": "technology",
       "aiEligible": true,
@@ -222,7 +222,7 @@
           "provider": "rules",
           "model": null
         },
-        "assessedAt": "2026-11-22T06:43:59.717Z"
+        "assessedAt": "2026-11-22T10:47:10.355Z"
       }
     },
     {
@@ -231,8 +231,8 @@
       "url": "https://example.com/tech/dc-gpu",
       "sourceId": "sample-tech",
       "sourceName": "【架空】サンプル技術ニュース",
-      "publishedAt": "2026-11-21T20:43:43.000Z",
-      "fetchedAt": "2026-11-22T06:43:59.717Z",
+      "publishedAt": "2026-11-22T00:47:07.000Z",
+      "fetchedAt": "2026-11-22T10:47:10.355Z",
       "feedCategories": [],
       "category": "technology",
       "aiEligible": true,
@@ -245,8 +245,20 @@
           "provider": "rules",
           "model": null
         },
-        "assessedAt": "2026-11-22T06:43:59.717Z"
+        "assessedAt": "2026-11-22T10:47:10.355Z"
       }
+    },
+    {
+      "id": "56939c16c039aaef",
+      "title": "【架空】日付のない記事",
+      "url": "https://example.com/tech/undated",
+      "sourceId": "sample-tech",
+      "sourceName": "【架空】サンプル技術ニュース",
+      "publishedAt": null,
+      "fetchedAt": "2026-11-22T10:47:10.355Z",
+      "feedCategories": [],
+      "category": "technology",
+      "aiEligible": true
     },
     {
       "id": "177115e33d03ea90",
@@ -254,8 +266,8 @@
       "url": "https://example.com/media/ai-jobs",
       "sourceId": "sample-no-ai",
       "sourceName": "【架空】AI送信未確認の媒体",
-      "publishedAt": "2026-11-22T02:43:43.000Z",
-      "fetchedAt": "2026-11-22T06:43:59.717Z",
+      "publishedAt": "2026-11-22T06:47:07.000Z",
+      "fetchedAt": "2026-11-22T10:47:10.355Z",
       "feedCategories": [],
       "category": "employment",
       "aiEligible": false
@@ -266,8 +278,8 @@
       "url": "https://example.com/media/telework",
       "sourceId": "sample-no-ai",
       "sourceName": "【架空】AI送信未確認の媒体",
-      "publishedAt": "2026-11-21T21:43:43.000Z",
-      "fetchedAt": "2026-11-22T06:43:59.717Z",
+      "publishedAt": "2026-11-22T01:47:07.000Z",
+      "fetchedAt": "2026-11-22T10:47:10.355Z",
       "feedCategories": [],
       "category": "employment",
       "aiEligible": false
@@ -292,14 +304,16 @@
       "id": "sample-no-ai",
       "name": "【架空】AI送信未確認の媒体",
       "ok": true,
-      "itemCount": 2
+      "itemCount": 2,
+      "attribution": "【架空】出典: AI送信未確認の媒体"
     },
     {
       "id": "sample-broken",
-      "name": "【架空】取得失敗する媒体",
+      "name": "【架空】取得に失敗する媒体",
       "ok": false,
       "itemCount": 0,
-      "error": "ENOENT: no such file or directory, open 'C:\\Projects\\shift-digest\\.offline-feeds\\missing.xml'"
+      "error": "local feed file not readable",
+      "attribution": "【架空】出典: 取得失敗の媒体"
     }
   ],
   "interests": [
@@ -312,7 +326,7 @@
   ],
   "stats": {
     "fetchedItems": 15,
-    "newArticles": 12,
+    "newArticles": 13,
     "usage": {
       "aiCalls": 0,
       "aiArticles": 0,

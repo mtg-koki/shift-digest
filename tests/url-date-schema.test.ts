@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { parseAssessments } from "../src/batch/assess";
 import { buildUserContent, SYSTEM_PROMPT } from "../src/batch/assess/prompt";
-import { parseSources, sourcePolicy } from "../src/batch/config";
+import { parseSources, parseSourcesFile, sourcePolicy } from "../src/batch/config";
 import { dedupe, inWindow, keywordMatches, toCandidate } from "../src/batch/select";
 import { addDays, formatJst, isValidDateString, jstDate, parseFeedDate } from "../src/shared/date";
 import { normalizeUrl, titleKey, titleSimilarity } from "../src/shared/url";
@@ -72,30 +72,45 @@ describe("JST date handling", () => {
 });
 
 describe("source terms and policy", () => {
-  it("defaults to disabled and unknown (not permitted)", () => {
-    const [s] = parseSources({ sources: [{ id: "x", name: "X", feedUrl: "https://example.com/f", defaultCategory: "technology" }] });
+  const base = { id: "x", name: "X", homepageUrl: "https://example.com/", feedUrl: "https://example.com/f", categories: ["technology"] };
+  it("defaults to disabled and unreviewed (not permitted)", () => {
+    const [s] = parseSources({ sources: [base] });
     expect(s!.enabled).toBe(false);
-    expect(s!.terms.aiMetadata.status).toBe("unknown");
+    expect(s!.privateRssUseStatus).toBe("unreviewed");
+    expect(s!.aiMetadataStatus).toBe("unreviewed");
     expect(sourcePolicy(s!)).toMatchObject({ fetch: false, ai: false });
   });
-  it("separates fetch/display from AI metadata sending", () => {
+  it("judges private RSS use and AI metadata sending separately", () => {
     expect(sourcePolicy(source("a"))).toMatchObject({ fetch: true, ai: true });
-    expect(sourcePolicy(source("a", { ai: "unknown" }))).toMatchObject({ fetch: true, ai: false });
+    expect(sourcePolicy(source("a", { ai: "unreviewed" }))).toMatchObject({ fetch: true, ai: false });
     expect(sourcePolicy(source("a", { ai: "prohibited" }))).toMatchObject({ fetch: true, ai: false });
     expect(sourcePolicy(source("a", { ai: "conditional" }))).toMatchObject({ fetch: true, ai: true });
-    expect(sourcePolicy(source("a", { display: "unknown" }))).toMatchObject({ fetch: false, ai: false });
-    expect(sourcePolicy(source("a", { fetch: "prohibited" }))).toMatchObject({ fetch: false, ai: false });
+    expect(sourcePolicy(source("a", { rss: "conditional", ai: "unreviewed" }))).toMatchObject({ fetch: true, ai: false });
+    expect(sourcePolicy(source("a", { rss: "prohibited", ai: "unreviewed" }))).toMatchObject({ fetch: false, ai: false });
     expect(sourcePolicy(source("a", { enabled: false }))).toMatchObject({ fetch: false, ai: false });
   });
-  it("requires evidence (terms URL + checked date) for allowed/conditional, and a note for conditional", () => {
-    const base = { id: "x", name: "X", feedUrl: "https://example.com/f", defaultCategory: "technology", enabled: true };
-    expect(() => parseSources({ sources: [{ ...base, terms: { fetch: { status: "allowed" } } }] })).toThrow(/required/);
-    expect(() => parseSources({ sources: [{ ...base, terms: { url: "https://e.com/t", checkedAt: "2026-11-22", display: { status: "conditional" } } }] })).toThrow(/note/);
+  it("waits for user confirmation of conditions before processing", () => {
+    expect(sourcePolicy(source("a", { pending: "privateRss" }))).toMatchObject({ fetch: false, ai: false });
+    expect(sourcePolicy(source("a", { pending: "aiMetadata" }))).toMatchObject({ fetch: true, ai: false });
+    const confirmed = source("a", { extra: { conditions: [{ appliesTo: "privateRss", kind: "userConfirmation", text: "確認", confirmedAt: "2026-11-22" }] } });
+    expect(sourcePolicy(confirmed)).toMatchObject({ fetch: true });
   });
-  it("real sources config: every source is disabled until terms are checked", () => {
-    const real = parseSources(JSON.parse(readFileSync("config/sources.json", "utf8")));
-    expect(real.length).toBeGreaterThan(0);
-    for (const s of real) expect(sourcePolicy(s).fetch, s.id).toBe(false);
+  it("requires evidence for allowed/conditional, conditions for conditional, and private RSS use before AI", () => {
+    expect(() => parseSources({ sources: [{ ...base, privateRssUseStatus: "allowed" }] })).toThrow(/required/);
+    const ev = { termsUrl: "https://e.com/t", reviewedAt: "2026-11-22", basis: { privateRss: "b", aiMetadata: "b" } };
+    expect(() => parseSources({ sources: [{ ...base, ...ev, privateRssUseStatus: "conditional" }] })).toThrow(/conditions/);
+    expect(() => parseSources({ sources: [{ ...base, ...ev, aiMetadataStatus: "allowed" }] })).toThrow(/privateRss is not/);
+    expect(() => parseSources({ sources: [{ ...base, ...ev, privateRssUseStatus: "allowed", aiMetadataStatus: "allowed" }] })).not.toThrow();
+  });
+  it("real sources config: enabled sources have evidence; unreviewed ones are disabled; manual links are listed", () => {
+    const real = parseSourcesFile(JSON.parse(readFileSync("config/sources.json", "utf8")));
+    expect(real.sources.length).toBeGreaterThan(0);
+    for (const s of real.sources) {
+      if (s.privateRssUseStatus === "unreviewed" || s.privateRssUseStatus === "prohibited") expect(sourcePolicy(s).fetch, s.id).toBe(false);
+      if (s.enabled) expect(s.attributionText, s.id).not.toBe("");
+      expect(s.feedUrl.startsWith("https://"), s.id).toBe(true);
+    }
+    expect(real.manualLinks.length).toBeGreaterThan(0);
   });
   it("sample sources config parses", () => {
     expect(parseSources(JSON.parse(readFileSync("config/sources.sample.json", "utf8"))).length).toBeGreaterThan(3);

@@ -97,6 +97,10 @@ describe("network guard (SSRF)", () => {
       server = createServer((req, res) => {
         if (req.url === "/ok") return res.end("<rss/>");
         if (req.url === "/big") return res.end("x".repeat(5000));
+        if (req.url === "/etag") {
+          if (req.headers["if-none-match"] === '"v1"') return res.writeHead(304, { etag: '"v1"' }).end();
+          return res.writeHead(200, { etag: '"v1"', "last-modified": "Sat, 21 Nov 2026 00:00:00 GMT", "content-type": "application/xml" }).end("<rss/>");
+        }
         if (req.url === "/slow") return setTimeout(() => res.end("late"), 2000);
         if (req.url === "/to-metadata") {
           res.writeHead(302, { location: "https://169.254.169.254/latest/meta-data/" });
@@ -135,6 +139,14 @@ describe("network guard (SSRF)", () => {
       await expect(safeFetch(`${base}/to-metadata`, opts())).rejects.toThrow(/not allowed/);
       await expect(safeFetch(`${base}/loop`, opts())).rejects.toThrow(/too many redirects/);
       await expect(safeFetch(`${base}/missing`, opts())).rejects.toThrow(/HTTP 500/);
+    });
+
+    it("sends conditional GET headers and accepts 304 only for conditional requests", async () => {
+      const first = await safeFetch(`${base}/etag`, opts());
+      expect(first).toMatchObject({ status: 200, etag: '"v1"', lastModified: "Sat, 21 Nov 2026 00:00:00 GMT" });
+      const second = await safeFetch(`${base}/etag`, opts({ ifNoneMatch: '"v1"' }));
+      expect(second).toMatchObject({ status: 304, etag: '"v1"' });
+      expect(second.body.length).toBe(0);
     });
 
     it("blocks the connection when the resolved address is internal", async () => {

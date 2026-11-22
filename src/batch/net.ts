@@ -104,6 +104,9 @@ export interface SafeFetchOptions {
   maxRedirects: number;
   userAgent: string;
   accept?: string;
+  /** 条件付き GET（前回の ETag / Last-Modified）。変更がなければ 304 を返す */
+  ifNoneMatch?: string;
+  ifModifiedSince?: string;
   /** テスト用: 名前解決の差し替え・プロトコルの差し替え */
   lookup?: ReturnType<typeof guardedLookup>;
   /** テスト用: https 以外（ローカルの http テストサーバー）を許可 */
@@ -115,6 +118,8 @@ export interface SafeFetchResult {
   contentType: string | null;
   body: Uint8Array;
   finalUrl: string;
+  etag?: string;
+  lastModified?: string;
 }
 
 function requestOnce(u: URL, opts: SafeFetchOptions, deadline: number): Promise<SafeFetchResult & { location?: string }> {
@@ -126,7 +131,13 @@ function requestOnce(u: URL, opts: SafeFetchOptions, deadline: number): Promise<
       u,
       {
         method: "GET",
-        headers: { "user-agent": opts.userAgent, accept: opts.accept ?? "*/*", "accept-encoding": "identity" },
+        headers: {
+          "user-agent": opts.userAgent,
+          accept: opts.accept ?? "*/*",
+          "accept-encoding": "identity",
+          ...(opts.ifNoneMatch ? { "if-none-match": opts.ifNoneMatch } : {}),
+          ...(opts.ifModifiedSince ? { "if-modified-since": opts.ifModifiedSince } : {}),
+        },
         lookup: (opts.lookup ?? guardedLookup()) as never,
         timeout: remaining,
       },
@@ -136,6 +147,15 @@ function requestOnce(u: URL, opts: SafeFetchOptions, deadline: number): Promise<
         if (status >= 300 && status < 400 && location) {
           res.resume();
           return resolve({ status, contentType: null, body: new Uint8Array(), finalUrl: u.href, location });
+        }
+        const header = (name: string) => {
+          const v = res.headers[name];
+          return typeof v === "string" && v.length <= 300 ? v : undefined;
+        };
+        const validators = { etag: header("etag"), lastModified: header("last-modified") };
+        if (status === 304) {
+          res.resume();
+          return resolve({ status, contentType: null, body: new Uint8Array(), finalUrl: u.href, ...validators });
         }
         const len = Number(res.headers["content-length"] ?? "0");
         if (len > opts.maxBytes) {
@@ -154,7 +174,13 @@ function requestOnce(u: URL, opts: SafeFetchOptions, deadline: number): Promise<
           chunks.push(c);
         });
         res.on("end", () =>
-          resolve({ status, contentType: (res.headers["content-type"] as string | undefined) ?? null, body: new Uint8Array(Buffer.concat(chunks)), finalUrl: u.href }),
+          resolve({
+            status,
+            contentType: (res.headers["content-type"] as string | undefined) ?? null,
+            body: new Uint8Array(Buffer.concat(chunks)),
+            finalUrl: u.href,
+            ...validators,
+          }),
         );
         res.on("error", reject);
       },
@@ -167,7 +193,7 @@ function requestOnce(u: URL, opts: SafeFetchOptions, deadline: number): Promise<
   });
 }
 
-/** 安全な GET。リダイレクト先も検査する。2xx 以外はエラー */
+/** 安全な GET。リダイレクト先も検査する。2xx と（条件付き GET の）304 以外はエラー */
 export async function safeFetch(url: string, opts: SafeFetchOptions): Promise<SafeFetchResult> {
   const deadline = Date.now() + opts.timeoutMs;
   const check = (raw: string) => {
@@ -182,6 +208,7 @@ export async function safeFetch(url: string, opts: SafeFetchOptions): Promise<Sa
       current = check(new URL(res.location, current).href);
       continue;
     }
+    if (res.status === 304 && (opts.ifNoneMatch || opts.ifModifiedSince)) return res;
     if (res.status < 200 || res.status >= 300) throw new Error(`HTTP ${res.status}`);
     return res;
   }

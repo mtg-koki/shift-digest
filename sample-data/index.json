@@ -1,14 +1,14 @@
 {
   "schemaVersion": 2,
   "latestDate": "2026-11-22",
-  "lastSuccessAt": "2026-11-22T06:43:59.786Z",
+  "lastSuccessAt": "2026-11-22T10:47:10.391Z",
   "dates": [
     {
       "date": "2026-11-22",
-      "articleCount": 12,
+      "articleCount": 13,
       "recommendationCount": 4,
       "status": "partial",
-      "generatedAt": "2026-11-22T06:43:59.786Z"
+      "generatedAt": "2026-11-22T10:47:10.391Z"
     }
   ]
 }

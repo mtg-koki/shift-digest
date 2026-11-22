@@ -1,6 +1,6 @@
 import type { Assessment, CategoryId } from "../shared/schema";
 import { normalizeUrl, titleKey, titleSimilarity, urlId } from "../shared/url";
-import type { Interests, Source } from "./config";
+import { defaultCategory, type Interests, type Source } from "./config";
 import type { FeedItem } from "./feed";
 
 export interface Candidate {
@@ -202,5 +202,5 @@ export function rankRecommendations(
 }
 
 export function displayCategory(c: Candidate, a: Assessment | undefined): CategoryId {
-  return a?.category ?? c.source.defaultCategory;
+  return a?.category ?? defaultCategory(c.source);
 }

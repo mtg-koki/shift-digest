@@ -6,13 +6,13 @@ import { emptyMarks, safeHref, type MarkAction, type Marks } from "../marks";
 
 /**
  * 画面の URL。静的配信（index.html 1 枚）のため、表示内容はクエリで表す。
- *   /                     最新（今日の読む候補・新着一覧）
- *   /?date=YYYY-MM-DD     日付別
- *   /?view=archive        過去の日付一覧
+ *   /                     新着順の一覧（RSS リーダー）と今日の読む候補。&source= &category= &q= &unread=1 &hidden=1 で絞り込み
+ *   /?view=sources        情報源の状態（最終正常取得・エラー・AI 評価の対象か）と手動リンク
  *   /?view=saved          保存した記事（この端末のブラウザー内）
- *   &category=technology 等  カテゴリ絞り込み
+ *   /?view=archive        日別の記録の一覧
+ *   /?date=YYYY-MM-DD     日別の記録（その日の新着と読む候補）。&category= で絞り込み
  */
-export function pageHref(p: { date?: string | null; category?: CategoryId | null; view?: "archive" | "saved" }): string {
+export function pageHref(p: { date?: string | null; category?: CategoryId | null; view?: "archive" | "saved" | "sources" }): string {
   const q = new URLSearchParams();
   if (p.view) q.set("view", p.view);
   if (p.date) q.set("date", p.date);
@@ -118,7 +118,7 @@ export function RecommendationCard({ a, rank, date, marks, act }: { a: Article; 
       </h3>
       {as && (
         <p className="reason">
-          <span className="reason-label">推薦理由（タイトル等から）:</span> {as.reason}
+          <span className="reason-label">{as.assessor.provider === "bedrock" ? "推薦理由（AI がタイトル等から作成）:" : "推薦理由（キーワード一致から作成）:"}</span> {as.reason}
           <span className="score" title="関心テーマとの関連度です。記事の正確性・重要性・必読度ではありません。">
             関心との関連度 {as.relevanceScore}
           </span>
@@ -179,7 +179,7 @@ export function ReportBody({
       )}
       {report.sources.length === 0 && <p className="notice notice-info">有効な情報源がありません。情報源の設定（利用条件の確認と有効化）を確認してください。</p>}
 
-      <h3 className="section-title">今日の読む候補</h3>
+      <h3 className="section-title">この日の読む候補</h3>
       <p className="note">
         関心テーマ（{report.interests.map((l) => `「${l}」`).join("")}）に合いそうな記事を、<strong>タイトル等に基づいて</strong>選んでいます。本文は読んでいません。
         関連度は関心との近さで、記事の正確性・重要性・必読度を表すものではありません。
@@ -194,7 +194,7 @@ export function ReportBody({
         </div>
       )}
 
-      <h3 className="section-title">新着一覧（{list.length}件）</h3>
+      <h3 className="section-title">この日の新着（{list.length}件）</h3>
       {list.length === 0 ? (
         <p className="empty">{report.articles.length === 0 ? "この日の新着記事はありませんでした。" : "表示できる記事はありません。"}</p>
       ) : (

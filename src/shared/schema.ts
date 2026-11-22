@@ -64,6 +64,7 @@ export const ArticleSchema = z.object({
   sourceName: z.string(),
   /** RSS に公開日時がある場合のみ。推定補完しない */
   publishedAt: IsoUtcSchema.nullable(),
+  /** 初めて取得した日時（一覧の並び順で公開日時がない場合に使う） */
   fetchedAt: IsoUtcSchema,
   /** RSS 側のカテゴリ（ある場合のみ） */
   feedCategories: z.array(z.string().max(80)).max(10),
@@ -165,21 +166,76 @@ export const SeenItemSchema = z.object({
 });
 export type SeenItem = z.infer<typeof SeenItemSchema>;
 
+/** 情報源ごとの取得状態（内部データ）。条件付き GET（ETag / Last-Modified）と取得間隔の判断に使う */
+export const SourceFetchStateSchema = z.object({
+  etag: z.string().max(300).optional(),
+  lastModified: z.string().max(100).optional(),
+  /** 取得の対象 URL（変わったら検証値を捨てる） */
+  feedUrl: z.string().optional(),
+  lastAttemptAt: IsoUtcSchema.optional(),
+  lastSuccessAt: IsoUtcSchema.optional(),
+  lastError: z.string().max(200).optional(),
+  lastItemCount: z.number().int().nonnegative().optional(),
+});
+export type SourceFetchState = z.infer<typeof SourceFetchStateSchema>;
+
 export const StateSchema = z.object({
   schemaVersion: z.literal(2),
   items: z.record(z.string(), SeenItemSchema),
   usageByDate: z.record(z.string(), UsageSchema),
+  sources: z.record(z.string(), SourceFetchStateSchema).default({}),
 });
 export type State = z.infer<typeof StateSchema>;
 
+/** 画面に出す情報源の状態（feed.json）。規約の判断の詳細は設定ファイルにあり、画面には要点だけを出す */
+export const SourceStatusSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  homepageUrl: z.string().url(),
+  categories: z.array(CategoryIdSchema),
+  attributionText: z.string(),
+  /** AI（関心度評価）に送る対象か */
+  aiEnabled: z.boolean(),
+  lastAttemptAt: IsoUtcSchema.nullable(),
+  /** 最終正常取得日時（変更なし応答 304 も正常） */
+  lastSuccessAt: IsoUtcSchema.nullable(),
+  /** 直近の取得エラー（正常なら null） */
+  lastError: z.string().max(200).nullable(),
+  /** 直近の取得の結果 */
+  lastResult: z.enum(["updated", "not-modified", "skipped-interval", "failed", "none"]),
+  /** 一覧に載っている件数 */
+  articleCount: z.number().int().nonnegative(),
+});
+export type SourceStatus = z.infer<typeof SourceStatusSchema>;
+
+export const ManualLinkPublicSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  url: z.string().url(),
+  categories: z.array(CategoryIdSchema),
+  note: z.string(),
+});
+
+/** 自分用 RSS リーダーの一覧データ（保存期間内の記事を新しい順）。日次バッチが更新する */
+export const FeedSnapshotSchema = z.object({
+  schemaVersion: z.literal(1),
+  generatedAt: IsoUtcSchema,
+  retentionDays: z.number().int().positive(),
+  articles: z.array(ArticleSchema),
+  sources: z.array(SourceStatusSchema),
+  manualLinks: z.array(ManualLinkPublicSchema),
+});
+export type FeedSnapshot = z.infer<typeof FeedSnapshotSchema>;
+
 /**
  * ストレージのキー。
- * - 自分用画面が取得するデータ（認証付きで配信）: index.json / status/ / reports/
+ * - 自分用画面が取得するデータ（認証付きで配信）: feed.json / index.json / status/ / reports/
  * - 内部データ（配信しない）: state/ / locks/
  * AWS では前者はサイト用バケットの data/ 配下、後者は別の内部用バケットに保存する。
  */
 export const STORAGE_KEYS = {
   index: "index.json",
+  feed: "feed.json",
   lastRun: "status/last-run.json",
   state: "state/seen.json",
   lock: "locks/batch.lock",
