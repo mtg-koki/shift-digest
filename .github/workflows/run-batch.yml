@@ -26,7 +26,8 @@ jobs:
     steps:
       - uses: aws-actions/configure-aws-credentials@v6
         with:
-          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          mask-aws-account-id: true
           aws-region: ${{ vars.AWS_REGION }}
       - name: Invoke (async)
         env:

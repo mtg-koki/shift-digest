@@ -358,7 +358,7 @@ Repository variables（秘密情報ではない）:
 | `BEDROCK_MODEL_ID` | 空＝ルールベース。利用手続き後に例 `jp.anthropic.claude-haiku-5-5` |
 | `SITE_BUCKET` / `BATCH_FUNCTION_NAME` | アプリ層 apply 後の出力 |
 
-Environment variables: `plan` / `production` それぞれに `AWS_ROLE_ARN`。
+Environment secrets: `plan` / `production` それぞれに `AWS_ROLE_ARN`（ログで伏せ字になるよう secret にする。各ワークフローは `mask-aws-account-id: true` でアカウント ID も伏せる）。
 Environment secrets（任意）: `ALERT_EMAILS`・`BUDGET_EMAILS` に `["you@example.com"]` 形式。
 
 ### 4. 初回デプロイの順序

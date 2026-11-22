@@ -40,7 +40,8 @@ jobs:
           test -n "${{ vars.SITE_BUCKET }}" || { echo "::error::vars.SITE_BUCKET is empty"; exit 1; }
       - uses: aws-actions/configure-aws-credentials@v6
         with:
-          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          mask-aws-account-id: true
           aws-region: ${{ vars.AWS_REGION }}
       - name: Upload hashed assets (immutable, never deleted here)
         run: >
