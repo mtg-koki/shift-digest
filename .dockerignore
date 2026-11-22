@@ -2,9 +2,12 @@
 .github
 node_modules
 .next
+out
 dist
 data
-sample-data/**/*.tmp
+public/data
+.local
+sample-data
 infra
 .env
 .env.*
@@ -15,3 +18,4 @@ infra
 *.tfstate*
 *.tfplan
 README.md
+CLAUDE.md

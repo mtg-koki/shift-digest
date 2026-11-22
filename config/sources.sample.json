@@ -1,0 +1,95 @@
+{
+  "sources": [
+    {
+      "id": "sample-tech",
+      "name": "【架空】サンプル技術ニュース",
+      "feedUrl": "file:.offline-feeds/tech.xml",
+      "enabled": true,
+      "defaultCategory": "technology",
+      "priority": 2,
+      "terms": {
+        "url": "https://example.com/sample-terms",
+        "checkedAt": "2026-11-22",
+        "summary": "【架空】ローカル検証用の架空の利用条件。実在の媒体・規約ではない。",
+        "fetch": { "status": "allowed", "note": "【架空】1 日 1 回の取得は可" },
+        "display": { "status": "allowed" },
+        "aiMetadata": { "status": "allowed" },
+        "fullText": { "status": "unknown" },
+        "attribution": "【架空】出典: サンプル技術ニュース"
+      }
+    },
+    {
+      "id": "sample-policy",
+      "name": "【架空】サンプル官公庁",
+      "feedUrl": "file:.offline-feeds/policy.xml",
+      "enabled": true,
+      "defaultCategory": "policy",
+      "priority": 1,
+      "terms": {
+        "url": "https://example.com/sample-gov-terms",
+        "checkedAt": "2026-11-22",
+        "summary": "【架空】出典表記を条件に利用可、という想定。",
+        "fetch": { "status": "allowed" },
+        "display": { "status": "conditional", "note": "【架空】出典表記を付けること" },
+        "aiMetadata": { "status": "conditional", "note": "【架空】タイトル等のメタデータのみ" },
+        "fullText": { "status": "unknown" },
+        "attribution": "【架空】出典: サンプル官公庁ウェブサイト"
+      }
+    },
+    {
+      "id": "sample-no-ai",
+      "name": "【架空】AI送信未確認の媒体",
+      "feedUrl": "file:.offline-feeds/no-ai.xml",
+      "enabled": true,
+      "defaultCategory": "employment",
+      "priority": 3,
+      "terms": {
+        "url": "https://example.com/sample-media-terms",
+        "checkedAt": "2026-11-22",
+        "summary": "【架空】取得・個人的な表示は可。AI サービスへの送信について記載がない、という想定。",
+        "fetch": { "status": "allowed" },
+        "display": { "status": "allowed" },
+        "aiMetadata": { "status": "unknown", "note": "【架空】規約に記載なし。問い合わせ予定" },
+        "fullText": { "status": "prohibited" }
+      }
+    },
+    {
+      "id": "sample-prohibited",
+      "name": "【架空】自動取得禁止の媒体",
+      "feedUrl": "file:.offline-feeds/prohibited.xml",
+      "enabled": true,
+      "defaultCategory": "ownership",
+      "terms": {
+        "url": "https://example.com/sample-prohibited-terms",
+        "checkedAt": "2026-11-22",
+        "summary": "【架空】自動取得を禁止している、という想定。取得されないことの確認用。",
+        "fetch": { "status": "prohibited" },
+        "display": { "status": "unknown" },
+        "aiMetadata": { "status": "unknown" },
+        "fullText": { "status": "prohibited" }
+      }
+    },
+    {
+      "id": "sample-broken",
+      "name": "【架空】取得失敗する媒体",
+      "feedUrl": "file:.offline-feeds/missing.xml",
+      "enabled": true,
+      "defaultCategory": "technology",
+      "terms": {
+        "url": "https://example.com/sample-terms",
+        "checkedAt": "2026-11-22",
+        "summary": "【架空】一部取得失敗の表示確認用（ファイルが存在しない）。",
+        "fetch": { "status": "allowed" },
+        "display": { "status": "allowed" },
+        "aiMetadata": { "status": "allowed" },
+        "fullText": { "status": "unknown" }
+      }
+    },
+    {
+      "id": "sample-disabled",
+      "name": "【架空】未確認の媒体（無効）",
+      "feedUrl": "https://example.com/feed.xml",
+      "defaultCategory": "technology"
+    }
+  ]
+}

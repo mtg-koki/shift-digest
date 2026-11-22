@@ -1,0 +1,23 @@
+# syntax=docker/dockerfile:1
+# 日次バッチ（AWS Lambda コンテナーイメージ）: RSS のメタデータ取得 → 重複除去 → 関心度評価。
+# - 依存込みの単一ファイルにバンドルし、実行イメージには node_modules を含めない
+# - CPU アーキテクチャは Lambda 側（Terraform の lambda_architecture、既定 x86_64）と一致させる:
+#     docker buildx build --platform linux/amd64 --provenance=false -f Dockerfile.lambda .
+# - ベースイメージは AWS 公式の Lambda 用 Node.js 24（Amazon Linux 2023）。
+#   セキュリティ更新を取り込むには定期的に再ビルド・再デプロイする（README 参照）
+FROM public.ecr.aws/docker/library/node:24-bookworm-slim AS build
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci --no-audit --no-fund
+COPY tsconfig.json ./
+COPY src ./src
+RUN npm run build:batch
+
+FROM public.ecr.aws/lambda/nodejs:24 AS run
+ENV NODE_ENV=production \
+    SOURCES_FILE=/var/task/config/sources.json \
+    INTERESTS_FILE=/var/task/config/interests.json
+COPY --from=build /app/dist/batch/lambda.mjs ${LAMBDA_TASK_ROOT}/lambda.mjs
+COPY config/sources.json config/interests.json ${LAMBDA_TASK_ROOT}/config/
+# lambda.mjs の export handler
+CMD ["lambda.handler"]

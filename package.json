@@ -1,6 +1,6 @@
 {
   "name": "shift-digest",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "engines": {
@@ -8,21 +8,21 @@
   },
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "build:batch": "esbuild src/batch/main.ts --bundle --platform=node --format=esm --target=node22 --outfile=dist/batch/main.mjs --log-level=warning \"--banner:js=import { createRequire as __cr } from 'module'; const require = __cr(import.meta.url);\"",
+    "build": "next build && node scripts/clean-export.mjs",
+    "preview": "node scripts/preview-static.mjs",
+    "build:batch": "esbuild src/batch/main.ts src/batch/lambda.ts --bundle --platform=node --format=esm --target=node24 --outdir=dist/batch --out-extension:.js=.mjs --log-level=warning \"--banner:js=import { createRequire as __cr } from 'module'; const require = __cr(import.meta.url);\"",
     "batch": "npm run build:batch && node --env-file-if-exists=.env dist/batch/main.mjs",
-    "batch:offline": "node scripts/make-offline-feeds.mjs && npm run build:batch && node --env-file-if-exists=.env dist/batch/main.mjs --sources config/sources.offline.json",
+    "batch:offline": "node scripts/make-offline-feeds.mjs && npm run build:batch && node --env-file-if-exists=.env dist/batch/main.mjs --sources config/sources.sample.json --allow-file-feeds",
     "seed:sample": "node scripts/seed-sample.mjs",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "check": "npm run lint && npm run typecheck && npm run test"
+    "check": "npm run lint && npm run typecheck && npm run test",
+    "auth:hash": "node scripts/make-basic-auth-hash.mjs"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^1.12.0",
-    "@azure/identity": "^4.14.1",
-    "@azure/storage-blob": "^12.34.0",
+    "@aws-sdk/client-bedrock-runtime": "^3.1175.0",
+    "@aws-sdk/client-s3": "^3.1175.0",
     "fast-xml-parser": "^5.12.1",
     "next": "^16.4.6",
     "react": "^19.3.1",
@@ -30,6 +30,7 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@types/aws-lambda": "^8.10.164",
     "@types/node": "^24.19.2",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",

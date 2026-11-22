@@ -2,7 +2,7 @@ import tseslint from "typescript-eslint";
 
 export default tseslint.config(
   {
-    ignores: [".next/**", "dist/**", "node_modules/**", "infra/**", "next-env.d.ts", ".offline-feeds/**", "data/**"],
+    ignores: [".next/**", "out/**", "dist/**", "node_modules/**", "infra/**", "next-env.d.ts", ".offline-feeds/**", "data/**", "public/data/**", ".local/**"],
   },
   ...tseslint.configs.recommended,
   {

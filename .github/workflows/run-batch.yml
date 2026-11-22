@@ -1,6 +1,6 @@
-# 日次バッチの手動実行（Container Apps Job を起動するだけ。Terraform もデプロイも行わない）。
-# AI API の従量課金が発生し得るため、承認必須の Environment "production" で実行する。
-# 再実行しても当日分があればスキップ。force=true でも AI 呼び出しは日次上限内に収まる。
+# 日次バッチの手動実行（Lambda を非同期で 1 回起動するだけ。Terraform もデプロイも行わない）。
+# Bedrock の従量課金が発生し得るため、承認必須の Environment "production" で実行する。
+# 当日分があればスキップ。force=true でも要約キャッシュを再利用し、AI 呼び出しは日次上限内に収まる。
 name: Run daily batch
 
 on:
@@ -20,36 +20,20 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  start:
+  invoke:
     runs-on: ubuntu-latest
     environment: production
     steps:
-      - uses: azure/login@v3
+      - uses: aws-actions/configure-aws-credentials@v6
         with:
-          client-id: ${{ vars.AZURE_CLIENT_ID }}
-          tenant-id: ${{ vars.AZURE_TENANT_ID }}
-          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
-      - name: Start job execution
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+      - name: Invoke (async)
         env:
-          RG: ${{ vars.APP_RESOURCE_GROUP }}
-          JOB: caj-${{ vars.NAME_PREFIX }}-daily
+          FN: ${{ vars.BATCH_FUNCTION_NAME }}
           FORCE: ${{ inputs.force }}
         run: |
-          if [ "$FORCE" = "true" ]; then
-            # 実行時だけ FORCE=true を追加したテンプレートで起動する（ジョブ定義は変更しない）
-            az containerapp job show -n "$JOB" -g "$RG" --query properties.template -o json > template.json
-            python3 - <<'PY'
-          import json
-          t = json.load(open("template.json"))
-          for c in t["containers"]:
-              env = [e for e in c.get("env", []) if e["name"] != "FORCE"]
-              env.append({"name": "FORCE", "value": "true"})
-              c["env"] = env
-          json.dump(t, open("template.json", "w"))
-          PY
-            az containerapp job start -n "$JOB" -g "$RG" --yaml template.json -o table
-            rm -f template.json
-          else
-            az containerapp job start -n "$JOB" -g "$RG" -o table
-          fi
-          echo "Check: az containerapp job execution list -n $JOB -g $RG -o table" >> "$GITHUB_STEP_SUMMARY"
+          payload=$([ "$FORCE" = "true" ] && echo '{"force":true}' || echo '{}')
+          aws lambda invoke --function-name "$FN" --invocation-type Event \
+            --cli-binary-format raw-in-base64-out --payload "$payload" /dev/null
+          echo "Invoked $FN with $payload. Logs: aws logs tail /aws/lambda/$FN --since 30m" >> "$GITHUB_STEP_SUMMARY"

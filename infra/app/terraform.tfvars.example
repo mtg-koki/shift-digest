@@ -1,13 +1,15 @@
-# terraform.tfvars にコピーして値を入れる（terraform.tfvars は git 管理外）。
-# image_tag は release.auto.tfvars（git 管理）で管理する。
-subscription_id         = "00000000-0000-0000-0000-000000000000"
-app_resource_group_name = "rg-shiftdg-app"
-name_prefix             = "shiftdg"
+# 手元で plan / apply する場合に terraform.tfvars にコピーして使う（git 管理外）。
+# CI では GitHub Variables / Secrets から TF_VAR_* で渡す。
+aws_region               = "ap-northeast-1"
+name_prefix              = "shift-digest"
+permissions_boundary_arn = "arn:aws:iam::123456789012:policy/shift-digest-app-boundary" # bootstrap の出力
 
-# AI は最初は mock。本番プロバイダーは認証情報・利用可能モデルを確認してから設定する
-ai_provider = "mock"
-ai_model    = ""
+# 空ならモック要約（AI 不使用）。Bedrock を使う場合の候補は README「Bedrock モデル」参照
+bedrock_model_id = ""
+# bedrock_model_id = "jp.anthropic.claude-haiku-5-5"
+# bedrock_model_id = "amazon.nova-lite-v1:0"
 
-# 予算通知（任意）
-# budget_contact_emails = ["you@example.com"]
-# budget_amount         = 500
+# 通知先（メールアドレスはリポジトリに書かない。このファイルは git 管理外）
+# alert_emails  = ["you@example.com"]
+# budget_emails = ["you@example.com"]
+# budget_monthly_usd = 5

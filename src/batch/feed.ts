@@ -3,20 +3,26 @@ import { fileURLToPath } from "node:url";
 import { XMLParser } from "fast-xml-parser";
 import { parseFeedDate } from "../shared/date";
 import type { Source } from "./config";
+import { safeFetch } from "./net";
 
+/**
+ * RSS から取り出すメタデータ。本文・説明文・画像は取り出さない（保存も AI 送信もしない）。
+ */
 export interface FeedItem {
   title: string;
   link: string;
-  /** HTML を除去した説明文（なければ空） */
-  description: string;
   /** 取得できた場合のみ */
   publishedAt: string | null;
+  /** RSS 側のカテゴリ（ある場合のみ） */
+  categories: string[];
 }
 
 export interface FetchOptions {
   timeoutMs: number;
   maxBytes: number;
+  maxRedirects: number;
   userAgent: string;
+  allowFileFeeds: boolean;
 }
 
 export type FeedFetcher = (source: Source, opts: FetchOptions) => Promise<FeedItem[]>;
@@ -37,34 +43,32 @@ export function decodeFeed(bytes: Uint8Array, contentType: string | null): strin
   }
 }
 
-/** HTTP(S) でフィードを取得する。サイズ・時間に上限を設け、認証や有料制限は回避しない。 */
+/** RSS を取得する。https のみ・内部アドレス不可・リダイレクト先も検査（net.ts）。認証や有料制限は回避しない。 */
 export const fetchFeed: FeedFetcher = async (source, opts) => {
-  if (source.url.startsWith("file:")) {
-    // 検証用。file:relative/path は作業ディレクトリ基準、file:///abs は絶対パス
-    const p = source.url.startsWith("file:///") ? fileURLToPath(source.url) : source.url.replace(/^file:/, "");
-    const buf = await readFile(p);
-    return parseFeed(decodeFeed(buf, null));
+  if (source.feedUrl.startsWith("file:")) {
+    // ローカルのサンプルフィード専用。Lambda では ALLOW_FILE_FEEDS を設定しない
+    if (!opts.allowFileFeeds) throw new Error("file: feeds are disabled");
+    const p = source.feedUrl.startsWith("file:///") ? fileURLToPath(source.feedUrl) : source.feedUrl.replace(/^file:/, "");
+    return parseFeed(decodeFeed(await readFile(p), null));
   }
-  const res = await fetch(source.url, {
-    headers: { "user-agent": opts.userAgent, accept: "application/rss+xml, application/atom+xml, application/xml, text/xml;q=0.9" },
-    redirect: "follow",
-    signal: AbortSignal.timeout(opts.timeoutMs),
+  const res = await safeFetch(source.feedUrl, {
+    timeoutMs: opts.timeoutMs,
+    maxBytes: opts.maxBytes,
+    maxRedirects: opts.maxRedirects,
+    userAgent: opts.userAgent,
+    accept: "application/rss+xml, application/atom+xml, application/xml, text/xml;q=0.9",
   });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const len = Number(res.headers.get("content-length") ?? "0");
-  if (len > opts.maxBytes) throw new Error(`feed too large (${len} bytes)`);
-  const buf = new Uint8Array(await res.arrayBuffer());
-  if (buf.byteLength > opts.maxBytes) throw new Error(`feed too large (${buf.byteLength} bytes)`);
-  return parseFeed(decodeFeed(buf, res.headers.get("content-type")));
+  return parseFeed(decodeFeed(res.body, res.contentType));
 };
 
 const parser = new XMLParser({
   ignoreAttributes: false,
   attributeNamePrefix: "@_",
   textNodeName: "#text",
+  // 標準の実体参照（&amp; 等）と HTML 実体だけを処理する。DTD による実体定義は parseFeed の前段で拒否する
   processEntities: true,
   htmlEntities: true,
-  isArray: (name) => ["item", "entry", "link"].includes(name),
+  isArray: (name) => ["item", "entry", "link", "category", "dc:subject"].includes(name),
 });
 
 function text(v: unknown): string {
@@ -75,17 +79,20 @@ function text(v: unknown): string {
   return "";
 }
 
+/** タグを除去したプレーンテキスト（表示は React がエスケープする。HTML として埋め込まない） */
 export function stripHtml(s: string): string {
   return s
     .replace(/<script[\s\S]*?<\/script>/gi, " ")
     .replace(/<style[\s\S]*?<\/style>/gi, " ")
     .replace(/<[^>]+>/g, " ")
     .replace(/&nbsp;/g, " ")
-    .replace(/&amp;/g, "&")
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
+    .replace(/&amp;/g, "&")
+    // 制御文字・双方向制御文字を除く
+    .replace(/[\u0000-\u001f\u007f‪-‮⁦-⁩]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -93,14 +100,23 @@ export function stripHtml(s: string): string {
 function atomLink(links: unknown): string {
   if (!Array.isArray(links)) return text(links);
   const objs = links as Array<Record<string, unknown> | string>;
-  const alt =
-    objs.find((l) => typeof l === "object" && (l["@_rel"] === undefined || l["@_rel"] === "alternate")) ?? objs[0];
+  const alt = objs.find((l) => typeof l === "object" && (l["@_rel"] === undefined || l["@_rel"] === "alternate")) ?? objs[0];
   if (typeof alt === "string") return alt;
   return typeof alt?.["@_href"] === "string" ? alt["@_href"] : "";
 }
 
-/** RSS 2.0 / RSS 1.0(RDF) / Atom を共通形式にする */
+function categories(v: unknown, atom: boolean): string[] {
+  if (!Array.isArray(v)) return [];
+  const out = v
+    .map((c) => (atom && typeof c === "object" && c ? String((c as Record<string, unknown>)["@_term"] ?? (c as Record<string, unknown>)["@_label"] ?? "") : text(c)))
+    .map((c) => stripHtml(c).slice(0, 80))
+    .filter(Boolean);
+  return [...new Set(out)].slice(0, 10);
+}
+
+/** RSS 2.0 / RSS 1.0(RDF) / Atom を共通形式にする。外部実体・DTD は処理しない */
 export function parseFeed(xml: string): FeedItem[] {
+  if (/<!ENTITY/i.test(xml) || /<!DOCTYPE[^>]*\[/i.test(xml)) throw new Error("DTD / entity declarations are not allowed");
   const doc = parser.parse(xml) as Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
   let raw: Array<Record<string, unknown>> = [];
   let kind: "rss" | "atom";
@@ -118,17 +134,13 @@ export function parseFeed(xml: string): FeedItem[] {
   }
   const items: FeedItem[] = [];
   for (const it of raw) {
-    const title = stripHtml(text(it.title));
+    const title = stripHtml(text(it.title)).slice(0, 300);
     const link = (kind === "atom" ? atomLink(it.link) : text(it.link) || text(it.guid)).trim();
     if (!title || !link) continue;
-    const description = stripHtml(
-      text(kind === "atom" ? (it.summary ?? it.content) : (it.description ?? it["content:encoded"])),
-    );
     const publishedAt =
-      kind === "atom"
-        ? parseFeedDate(text(it.published) || text(it.updated))
-        : parseFeedDate(text(it.pubDate) || text(it["dc:date"]));
-    items.push({ title, link, description, publishedAt });
+      kind === "atom" ? parseFeedDate(text(it.published) || text(it.updated)) : parseFeedDate(text(it.pubDate) || text(it["dc:date"]));
+    const cats = kind === "atom" ? categories(it.category, true) : [...categories(it.category, false), ...categories(it["dc:subject"], false)];
+    items.push({ title, link, publishedAt, categories: [...new Set(cats)].slice(0, 10) });
   }
   return items;
 }

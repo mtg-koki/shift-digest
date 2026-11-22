@@ -1,60 +1,52 @@
+import { createHash } from "node:crypto";
 import type { z } from "zod";
 import { addDays, jstDate } from "../shared/date";
 import {
-  AiSummarySchema,
   DailyReportSchema,
   DigestIndexSchema,
   StateSchema,
   STORAGE_KEYS,
-  type AiSummary,
   type Article,
+  type Assessment,
+  type AssessorInfo,
   type DailyReport,
   type DigestIndex,
   type LastRun,
   type SourceResult,
   type State,
-  type SummarizerInfo,
   type Usage,
 } from "../shared/schema";
 import type { Storage } from "../shared/storage";
-import { titleKey } from "../shared/url";
-import type { BatchEnv, Source } from "./config";
+import { AssessRejected, parseAssessments, PROMPT_VERSION, type Assessor } from "./assess";
+import { interestsHash, sourcePolicy, type BatchEnv, type Interests, type Source } from "./config";
 import type { FeedFetcher } from "./feed";
-import { dedupe, inWindow, isSimilarTitle, sortCandidates, toCandidate, type Candidate } from "./select";
-import { SummarizeRejected, type Summarizer } from "./summarize";
+import { dedupe, displayCategory, inWindow, rankRecommendations, ruleAssessment, selectForAssessment, toCandidate, type Candidate } from "./select";
 
 export type RunOutcome =
-  | { status: "ok" | "partial"; date: string; published: number; usage: Usage }
+  | { status: "ok" | "partial"; date: string; articles: number; recommendations: number; usage: Usage }
   | { status: "skipped"; date: string; reason: string }
   | { status: "failed"; date: string; reason: string };
 
 export interface RunDeps {
   storage: Storage;
   fetcher: FeedFetcher;
-  summarizer: Summarizer;
+  /** null ならルールベース評価（AI 不使用） */
+  assessor: Assessor | null;
   sources: Source[];
+  interests: Interests;
   env: BatchEnv;
   now?: () => Date;
   force?: boolean;
   log?: (msg: string, extra?: Record<string, unknown>) => void;
 }
 
-type Limits = Pick<
-  BatchEnv,
-  | "MAX_AI_ARTICLES_PER_DAY"
-  | "MAX_PUBLISHED_ARTICLES"
-  | "MIN_RELEVANCE"
-  | "LOOKBACK_HOURS"
-  | "MAX_ITEMS_PER_SOURCE"
-  | "AI_MAX_INPUT_CHARS"
-  | "BATCH_MAX_RUNTIME_MS"
-  | "STATE_RETENTION_DAYS"
-  | "FEED_TIMEOUT_MS"
-  | "FEED_MAX_BYTES"
-  | "FEED_USER_AGENT"
->;
+/**
+ * ロックの有効期限。Lambda の最大実行時間（15 分）より長くし、更新（延長）は行わない。
+ * 異常終了した実行のロックは期限後に次の実行が奪う。
+ */
+export const LOCK_TTL_SECONDS = 16 * 60;
 
-const RECENT_DUP_DAYS = 7;
+const RULES: AssessorInfo = { provider: "rules", model: null };
 
 async function readJson<T>(storage: Storage, key: string, schema: z.ZodType<T>): Promise<T | null> {
   const text = await storage.getText(key);
@@ -63,14 +55,31 @@ async function readJson<T>(storage: Storage, key: string, schema: z.ZodType<T>):
 }
 
 const json = (v: unknown) => JSON.stringify(v, null, 2) + "\n";
+const emptyUsage = (): Usage => ({ aiCalls: 0, aiArticles: 0, inputTokens: 0, outputTokens: 0 });
 
-function emptyState(): State {
-  return { schemaVersion: 1, items: {}, usageByDate: {} };
+async function loadState(storage: Storage, log: NonNullable<RunDeps["log"]>): Promise<State> {
+  const text = await storage.getText(STORAGE_KEYS.state);
+  if (text === null) return { schemaVersion: 2, items: {}, usageByDate: {} };
+  const raw = JSON.parse(text) as { schemaVersion?: number };
+  if (raw.schemaVersion !== 2) {
+    // 旧形式（ニュース要約版）の state。記事の扱いが異なるため引き継がない
+    log("state has an old schema; starting fresh", { schemaVersion: raw.schemaVersion });
+    return { schemaVersion: 2, items: {}, usageByDate: {} };
+  }
+  return StateSchema.parse(raw);
+}
+
+/** 評価の前提。タイトル・関心テーマ・評価器（モデル）・プロンプト版のどれかが変われば再評価する */
+export function assessmentKey(c: Pick<Candidate, "titleKey">, interests: Interests, assessor: AssessorInfo): string {
+  return createHash("sha256")
+    .update([c.titleKey, interestsHash(interests), assessor.provider, assessor.model ?? "", PROMPT_VERSION].join("\n"))
+    .digest("hex")
+    .slice(0, 24);
 }
 
 /**
  * 日次バッチ本体。
- * 書き込み順: state(要約キャッシュ) → report → 読み戻し検証 → state(掲載済み) → index → last-run
+ * 書き込み順: state（評価キャッシュ） → report → 読み戻し検証 → index → last-run
  * index（latest 参照）は report の検証後にしか更新しないため、途中で失敗しても前回の正常データが表示され続ける。
  */
 export async function runDaily(deps: RunDeps): Promise<RunOutcome> {
@@ -79,27 +88,19 @@ export async function runDaily(deps: RunDeps): Promise<RunOutcome> {
   const log = deps.log ?? ((m, e) => console.log(JSON.stringify({ msg: m, ...e })));
   const { storage } = deps;
 
-  const lock = await storage.tryLock(STORAGE_KEYS.lock, 60);
+  const lock = await storage.tryLock(STORAGE_KEYS.lock, LOCK_TTL_SECONDS);
   if (!lock) {
     log("another run is in progress; skipping");
     return { status: "skipped", date, reason: "locked" };
   }
   try {
     const outcome = await runLocked(deps, now, date, log);
-    await writeLastRun(storage, {
-      schemaVersion: 1,
-      at: new Date().toISOString(),
-      date,
-      status: outcome.status,
-      message: "reason" in outcome ? outcome.reason : undefined,
-    });
+    await writeLastRun(storage, { schemaVersion: 2, at: new Date().toISOString(), date, status: outcome.status, message: "reason" in outcome ? outcome.reason : undefined });
     return outcome;
   } catch (e) {
     const reason = e instanceof Error ? e.message : String(e);
     log("run failed", { error: reason });
-    await writeLastRun(storage, { schemaVersion: 1, at: new Date().toISOString(), date, status: "failed", message: reason }).catch(
-      () => undefined,
-    );
+    await writeLastRun(storage, { schemaVersion: 2, at: new Date().toISOString(), date, status: "failed", message: reason.slice(0, 300) }).catch(() => undefined);
     return { status: "failed", date, reason };
   } finally {
     await lock.release();
@@ -110,223 +111,224 @@ async function writeLastRun(storage: Storage, lr: LastRun) {
   await storage.putText(STORAGE_KEYS.lastRun, json(lr));
 }
 
-async function runLocked(
-  deps: RunDeps,
-  now: Date,
-  date: string,
-  log: NonNullable<RunDeps["log"]>,
-): Promise<RunOutcome> {
-  const { storage, env, summarizer } = deps;
-  const limits: Limits = env;
+async function runLocked(deps: RunDeps, now: Date, date: string, log: NonNullable<RunDeps["log"]>): Promise<RunOutcome> {
+  const { storage, env, interests } = deps;
   // 実行時間の上限は実時計で測る（now は日付計算用で、テストでは固定値になる）
-  const deadline = Date.now() + limits.BATCH_MAX_RUNTIME_MS;
+  const deadline = Date.now() + env.BATCH_MAX_RUNTIME_MS;
 
-  // 1. 当日分が既にあれば何もしない（再実行の冪等性）。--force 時のみ作り直す。
-  const existing = await storage.getText(STORAGE_KEYS.report(date));
-  if (existing !== null && !deps.force) {
+  // 1. 当日分が既にあれば何もしない（再実行の冪等性）。force 時のみ作り直す（評価はキャッシュを再利用）
+  if ((await storage.getText(STORAGE_KEYS.report(date))) !== null && !deps.force) {
     log("report already exists; skipping", { date });
     return { status: "skipped", date, reason: "already-exists" };
   }
+  const state = await loadState(storage, log);
 
-  const state = (await readJson(storage, STORAGE_KEYS.state, StateSchema)) ?? emptyState();
+  // 2. 情報源ごとの処理可否（未確認は許可と扱わない）
+  const policies = new Map(deps.sources.map((s) => [s.id, sourcePolicy(s)]));
+  const targets = deps.sources.filter((s) => policies.get(s.id)!.fetch);
+  for (const s of deps.sources) {
+    const p = policies.get(s.id)!;
+    if (!p.fetch) log("source not fetched (terms/enabled)", { source: s.id, reasons: p.reasons });
+    else if (!p.ai) log("source not sent to AI (terms)", { source: s.id, reasons: p.reasons });
+  }
 
-  // 2. 取得（一部失敗は許容）
+  // 3. 取得（一部失敗は許容）
   const sourceResults: SourceResult[] = [];
   const candidates: Candidate[] = [];
   let fetchedItems = 0;
   const settled = await Promise.allSettled(
-    deps.sources.map((s) =>
-      deps.fetcher(s, { timeoutMs: limits.FEED_TIMEOUT_MS, maxBytes: limits.FEED_MAX_BYTES, userAgent: limits.FEED_USER_AGENT }),
+    targets.map((s) =>
+      deps.fetcher(s, {
+        timeoutMs: env.FEED_TIMEOUT_MS,
+        maxBytes: env.FEED_MAX_BYTES,
+        maxRedirects: env.FEED_MAX_REDIRECTS,
+        userAgent: env.FEED_USER_AGENT,
+        allowFileFeeds: env.ALLOW_FILE_FEEDS,
+      }),
     ),
   );
   settled.forEach((r, i) => {
-    const source = deps.sources[i]!;
+    const source = targets[i]!;
+    const attribution = source.terms.attribution;
     if (r.status === "rejected") {
       const error = r.reason instanceof Error ? r.reason.message : String(r.reason);
       log("source failed", { source: source.id, error });
-      sourceResults.push({ id: source.id, name: source.name, ok: false, itemCount: 0, error: error.slice(0, 200) });
+      sourceResults.push({ id: source.id, name: source.name, ok: false, itemCount: 0, error: error.slice(0, 200), attribution });
       return;
     }
-    const items = r.value.slice(0, source.maxItems ?? limits.MAX_ITEMS_PER_SOURCE);
+    const items = r.value.slice(0, source.maxItems ?? env.MAX_ITEMS_PER_SOURCE);
     fetchedItems += items.length;
-    sourceResults.push({ id: source.id, name: source.name, ok: true, itemCount: items.length });
+    sourceResults.push({ id: source.id, name: source.name, ok: true, itemCount: items.length, attribution });
     for (const it of items) {
-      if (!inWindow(it.publishedAt, now, limits.LOOKBACK_HOURS)) continue;
-      const c = toCandidate(it, source);
+      if (!inWindow(it.publishedAt, now, env.LOOKBACK_HOURS, env.INCLUDE_UNDATED)) continue;
+      const c = toCandidate(it, source, policies.get(source.id)!.ai);
       if (c) candidates.push(c);
     }
   });
-
   const okCount = sourceResults.filter((s) => s.ok).length;
-  if (deps.sources.length > 0 && okCount === 0) {
+  if (targets.length > 0 && okCount === 0) {
     // 全取得失敗。正常な 0 件とは区別し、index は更新しない
     throw new Error("all sources failed");
   }
 
-  // 3. 既出（過去日に掲載済み）・直近掲載と同じニュースを除外
-  const recentFrom = addDays(date, -RECENT_DUP_DAYS);
-  const recentTitles = Object.values(state.items)
-    .filter((s) => s.reportDate && s.reportDate !== date && s.reportDate >= recentFrom && s.titleKey)
-    .map((s) => s.titleKey!);
-  const fresh = dedupe(sortCandidates(candidates)).filter((c) => {
+  // 4. 重複除去（保守的）。今日初めて見つかった記事だけを新着とする（過去日に見つかった記事は再掲・再評価しない）
+  const fresh = dedupe(candidates).filter((c) => {
     const seen = state.items[c.id];
-    if (seen?.reportDate && seen.reportDate !== date) return false;
-    return !recentTitles.some((t) => isSimilarTitle(t, c.titleKey));
+    return !seen || seen.firstSeenDate === date;
   });
-
-  // 4. 要約（キャッシュ優先。AI 呼び出しは日付ごとに上限）
-  const usage: Usage = state.usageByDate[date] ?? { aiCalls: 0, inputTokens: 0, outputTokens: 0 };
-  const runUsage: Usage = { aiCalls: 0, inputTokens: 0, outputTokens: 0 };
-  const summarized: Array<{ c: Candidate; summary: AiSummary; info: SummarizerInfo; truncated: boolean }> = [];
   for (const c of fresh) {
-    const cached = state.items[c.id];
-    const truncated = c.description.length > limits.AI_MAX_INPUT_CHARS;
-    if (cached?.summary && cached.summarizer) {
-      summarized.push({ c, summary: cached.summary, info: cached.summarizer, truncated });
-      continue;
+    const prev = state.items[c.id];
+    state.items[c.id] = {
+      url: c.normalizedUrl,
+      title: c.title,
+      sourceId: c.source.id,
+      firstSeenAt: prev?.firstSeenAt ?? now.toISOString(),
+      firstSeenDate: prev?.firstSeenDate ?? date,
+      assessment: prev?.assessment,
+      assessmentKey: prev?.assessmentKey,
+    };
+  }
+
+  // 5. 評価（AI 送信が許可された情報源だけ。評価済みで前提が同じならキャッシュを使う）
+  const assessorInfo = deps.assessor?.info ?? RULES;
+  const keyOf = (c: Candidate) => assessmentKey(c, interests, assessorInfo);
+  const needs = (c: Candidate) => state.items[c.id]?.assessmentKey !== keyOf(c);
+  const usage: Usage = { ...emptyUsage(), ...state.usageByDate[date] };
+  const runUsage = emptyUsage();
+
+  if (!deps.assessor) {
+    // ルールベース（AI 不使用）
+    for (const c of fresh.filter((x) => x.aiEligible && !x.duplicateOf && needs(x))) {
+      state.items[c.id]!.assessment = { ...ruleAssessment(c, interests, now.toISOString()), assessor: RULES };
+      state.items[c.id]!.assessmentKey = keyOf(c);
     }
-    if (usage.aiCalls >= limits.MAX_AI_ARTICLES_PER_DAY) continue;
-    if (Date.now() > deadline) {
-      log("runtime limit reached; stop summarizing");
-      break;
-    }
-    usage.aiCalls++;
-    runUsage.aiCalls++;
-    try {
-      const res = await summarizer.summarize(
-        {
-          sourceName: c.source.name,
-          originalTitle: c.title,
-          publishedAt: c.publishedAt,
-          contentBasis: c.contentBasis,
-          text: c.description.slice(0, limits.AI_MAX_INPUT_CHARS),
-          defaultCategory: c.source.defaultCategory,
-        },
-        AbortSignal.timeout(Math.max(1000, deadline - Date.now())),
-      );
-      addUsage(usage, runUsage, res.usage);
-      const parsed = AiSummarySchema.safeParse(res.raw);
-      if (!parsed.success) {
-        log("invalid AI output; skipped", { id: c.id, issues: parsed.error.issues.map((i) => i.message).slice(0, 3) });
-        continue;
+  } else {
+    const remaining = Math.max(0, env.MAX_AI_ARTICLES_PER_DAY - usage.aiArticles);
+    const selected = selectForAssessment(fresh, {
+      interests,
+      now,
+      lookbackHours: env.LOOKBACK_HOURS,
+      limit: remaining,
+      perSource: env.MAX_AI_ARTICLES_PER_SOURCE,
+      needsAssessment: needs,
+    });
+    const labels = interests.themes.map((t) => t.label);
+    for (let i = 0; i < selected.length; i += env.AI_BATCH_SIZE) {
+      if (Date.now() > deadline) {
+        log("runtime limit reached; stop assessing");
+        break;
       }
-      state.items[c.id] = {
-        url: c.normalizedUrl,
-        firstSeenAt: state.items[c.id]?.firstSeenAt ?? now.toISOString(),
-        reportDate: state.items[c.id]?.reportDate ?? null,
-        summary: parsed.data,
-        summarizer: summarizer.info,
-        titleKey: c.titleKey,
+      const chunk = selected.slice(i, i + env.AI_BATCH_SIZE);
+      for (const u of [usage, runUsage]) {
+        u.aiCalls++;
+        u.aiArticles += chunk.length;
+      }
+      const add = (t: { inputTokens: number; outputTokens: number }) => {
+        for (const u of [usage, runUsage]) {
+          u.inputTokens += t.inputTokens;
+          u.outputTokens += t.outputTokens;
+        }
       };
-      summarized.push({ c, summary: parsed.data, info: summarizer.info, truncated });
-    } catch (e) {
-      if (e instanceof SummarizeRejected) addUsage(usage, runUsage, e.usage);
-      log("summarize failed; skipped", { id: c.id, error: e instanceof Error ? e.message : String(e) });
+      try {
+        const res = await deps.assessor.assess(
+          chunk.map((c) => ({ articleId: c.id, title: c.title, sourceName: c.source.name, publishedAt: c.publishedAt })),
+          labels,
+          AbortSignal.timeout(Math.max(1000, deadline - Date.now())),
+        );
+        add(res.usage);
+        const { accepted, rejected } = parseAssessments(res.raw, new Set(chunk.map((c) => c.id)));
+        if (rejected.length) log("AI output partly rejected", { rejected: rejected.slice(0, 5) });
+        const at = new Date().toISOString();
+        for (const c of chunk) {
+          const a = accepted.get(c.id);
+          if (!a) continue;
+          state.items[c.id]!.assessment = {
+            category: a.category,
+            relevanceScore: a.relevanceScore,
+            reason: a.reason,
+            assessmentBasis: "metadata_only",
+            assessor: deps.assessor.info,
+            assessedAt: at,
+          };
+          state.items[c.id]!.assessmentKey = keyOf(c);
+        }
+        log("AI assessed", { requested: chunk.length, accepted: accepted.size, usage: res.usage });
+      } catch (e) {
+        if (e instanceof AssessRejected) add(e.usage);
+        log("AI assessment failed; skipped", { requested: chunk.length, error: e instanceof Error ? e.message : String(e) });
+      }
     }
   }
   state.usageByDate[date] = usage;
-  pruneState(state, date, limits.STATE_RETENTION_DAYS);
-  // 要約結果を先に保存（後続が失敗しても再実行で再要約しない）
+  pruneState(state, date, env.STATE_RETENTION_DAYS);
+  // 評価結果を先に保存（後続が失敗しても再実行で再評価しない）
   await storage.putText(STORAGE_KEYS.state, json(StateSchema.parse(state)));
 
-  // 5. 掲載記事の選定
-  const ranked = summarized
-    .filter((s) => s.summary.category !== "out_of_scope" && s.summary.relevance >= limits.MIN_RELEVANCE)
-    .sort(
-      (a, b) =>
-        b.summary.relevance - a.summary.relevance ||
-        a.c.source.priority - b.c.source.priority ||
-        (b.c.publishedAt ?? "").localeCompare(a.c.publishedAt ?? ""),
-    );
-  const picked: typeof ranked = [];
-  for (const s of ranked) {
-    if (picked.length >= limits.MAX_PUBLISHED_ARTICLES) break;
-    if (picked.some((p) => isSimilarTitle(titleKey(p.summary.title_ja), titleKey(s.summary.title_ja)))) continue;
-    picked.push(s);
-  }
-
+  // 6. 新着一覧と今日の読む候補
   const fetchedAt = now.toISOString();
-  const articles: Article[] = picked.map(({ c, summary, info, truncated }) => ({
+  const withAssessment = fresh.map((c) => {
+    const s = state.items[c.id];
+    const assessment: Assessment | undefined = s?.assessmentKey === keyOf(c) ? s.assessment : undefined;
+    return { c, assessment };
+  });
+  const ranked = rankRecommendations(withAssessment, {
+    interests,
+    now,
+    lookbackHours: env.LOOKBACK_HOURS,
+    max: env.MAX_RECOMMENDATIONS,
+    perSource: env.MAX_RECOMMENDATIONS_PER_SOURCE,
+    minScore: env.MIN_RELEVANCE_SCORE,
+  });
+  const articles: Article[] = withAssessment.map(({ c, assessment }) => ({
     id: c.id,
-    titleJa: summary.title_ja,
-    summaryJa: summary.summary_ja,
-    category: summary.category as Article["category"],
-    originalTitle: c.title,
+    title: c.title,
+    url: c.url,
     sourceId: c.source.id,
     sourceName: c.source.name,
-    url: c.url,
     publishedAt: c.publishedAt,
     fetchedAt,
-    contentBasis: c.contentBasis,
-    inputTruncated: truncated,
-    summarizer: info,
+    feedCategories: c.feedCategories,
+    category: displayCategory(c, assessment),
+    ...(c.duplicateOf ? { duplicateOf: c.duplicateOf } : {}),
+    aiEligible: c.aiEligible,
+    ...(assessment ? { assessment } : {}),
   }));
 
-  const status = okCount === deps.sources.length ? "ok" : "partial";
+  const status = okCount === targets.length ? "ok" : "partial";
   const report: DailyReport = DailyReportSchema.parse({
-    schemaVersion: 1,
+    schemaVersion: 2,
     date,
     generatedAt: new Date().toISOString(),
     status,
+    recommendations: ranked.map((r) => ({ articleId: r.c.id, rankScore: r.rankScore })),
     articles,
     sources: sourceResults,
-    stats: { fetchedItems, candidates: fresh.length, usage: runUsage },
+    interests: interests.themes.map((t) => t.label),
+    stats: { fetchedItems, newArticles: articles.length, usage: runUsage },
   });
 
-  // 6. report を保存し、読み戻して検証
+  // 7. report を保存し、読み戻して検証
   const reportKey = STORAGE_KEYS.report(date);
   await storage.putText(reportKey, json(report));
   const verify = await readJson(storage, reportKey, DailyReportSchema);
   if (!verify || verify.articles.length !== report.articles.length) throw new Error("report verification failed");
 
-  // 7. 掲載済みを state に記録（--force で外れた記事は未掲載に戻す）
-  const pickedIds = new Set(articles.map((a) => a.id));
-  for (const [id, item] of Object.entries(state.items)) {
-    if (item.reportDate === date && !pickedIds.has(id)) item.reportDate = null;
-  }
-  for (const a of picked) {
-    const item = state.items[a.c.id];
-    if (item) item.reportDate = date;
-    else
-      state.items[a.c.id] = {
-        url: a.c.normalizedUrl,
-        firstSeenAt: now.toISOString(),
-        reportDate: date,
-        summary: a.summary,
-        summarizer: a.info,
-        titleKey: a.c.titleKey,
-      };
-  }
-  await storage.putText(STORAGE_KEYS.state, json(StateSchema.parse(state)));
-
-  // 8. 最後に latest 参照（index）を更新
+  // 8. 最後に latest 参照（index）を更新（旧形式の index は引き継がない）
   const prev = await readJson(storage, STORAGE_KEYS.index, DigestIndexSchema).catch(() => null);
   const dates = (prev?.dates ?? []).filter((d) => d.date !== date);
-  dates.push({ date, articleCount: articles.length, status, generatedAt: report.generatedAt });
+  dates.push({ date, articleCount: articles.length, recommendationCount: ranked.length, status, generatedAt: report.generatedAt });
   dates.sort((a, b) => b.date.localeCompare(a.date));
-  const index: DigestIndex = DigestIndexSchema.parse({
-    schemaVersion: 1,
-    latestDate: dates[0]!.date,
-    lastSuccessAt: report.generatedAt,
-    dates,
-  });
+  const index: DigestIndex = DigestIndexSchema.parse({ schemaVersion: 2, latestDate: dates[0]!.date, lastSuccessAt: report.generatedAt, dates });
   await storage.putText(STORAGE_KEYS.index, json(index));
 
-  log("run completed", { date, status, published: articles.length, candidates: fresh.length, usage: runUsage });
-  return { status, date, published: articles.length, usage: runUsage };
-}
-
-function addUsage(day: Usage, run: Usage, u: { inputTokens: number; outputTokens: number }) {
-  day.inputTokens += u.inputTokens;
-  day.outputTokens += u.outputTokens;
-  run.inputTokens += u.inputTokens;
-  run.outputTokens += u.outputTokens;
+  log("run completed", { date, status, articles: articles.length, recommendations: ranked.length, usage: runUsage });
+  return { status, date, articles: articles.length, recommendations: ranked.length, usage: runUsage };
 }
 
 function pruneState(state: State, date: string, retentionDays: number) {
   const cutoff = addDays(date, -retentionDays);
   for (const [id, item] of Object.entries(state.items)) {
-    if (item.firstSeenAt.slice(0, 10) < cutoff) delete state.items[id];
+    if (item.firstSeenDate < cutoff) delete state.items[id];
   }
   for (const d of Object.keys(state.usageByDate)) if (d < cutoff) delete state.usageByDate[d];
 }

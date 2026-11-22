@@ -10,7 +10,7 @@
   --info-bg: #eef4fc;
   --err-bg: #fdecec;
   --err-fg: #8a1c1c;
-  --tech: #1f5fbf;
+  --technology: #1f5fbf;
   --employment: #1b7f4b;
   --ownership: #8a5a00;
   --policy: #7a3fa0;
@@ -28,7 +28,7 @@
     --info-bg: #1b2636;
     --err-bg: #3a1a1a;
     --err-fg: #ffb4b4;
-    --tech: #7fb0ff;
+    --technology: #7fb0ff;
     --employment: #6fd19c;
     --ownership: #e2b55a;
     --policy: #c99ae6;
@@ -65,7 +65,7 @@ main.wrap { padding-top: 16px; padding-bottom: 32px; }
 .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; overflow-wrap: anywhere; }
 .card-meta { display: flex; gap: 8px; align-items: center; font-size: 0.8rem; color: var(--muted); flex-wrap: wrap; }
 .badge { font-weight: 700; border: 1px solid currentColor; border-radius: 4px; padding: 0 6px; }
-.badge-tech { color: var(--tech); }
+.badge-technology { color: var(--technology); }
 .badge-employment { color: var(--employment); }
 .badge-ownership { color: var(--ownership); }
 .badge-policy { color: var(--policy); }
@@ -83,3 +83,20 @@ main.wrap { padding-top: 16px; padding-bottom: 32px; }
 .archive-count { color: var(--muted); font-size: 0.875rem; }
 .archive-note { color: var(--warn-fg); font-size: 0.8rem; }
 .site-footer { color: var(--muted); font-size: 0.8rem; padding-bottom: 24px; }
+.section-title { font-size: 1.05rem; margin: 24px 0 8px; }
+.note { color: var(--muted); font-size: 0.85rem; margin: 0 0 12px; }
+.muted { color: var(--muted); }
+.small { font-size: 0.8rem; }
+.rank { color: var(--muted); }
+.reason { margin: 4px 0 8px; font-size: 0.95rem; }
+.reason-label { color: var(--muted); font-size: 0.85rem; }
+.score { display: inline-block; margin-left: 8px; font-size: 0.8rem; color: var(--muted); border: 1px solid var(--line); border-radius: 4px; padding: 0 6px; }
+.card-read, .row-read { opacity: 0.65; }
+.rows { list-style: none; padding: 0; margin: 0; }
+.row { padding: 10px 0; border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
+.row-title { margin: 2px 0 4px; }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.actions button { font: inherit; font-size: 0.8rem; min-height: 32px; padding: 2px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--card); color: var(--fg); cursor: pointer; }
+.actions button[aria-pressed="true"] { background: var(--info-bg); }
+.toggle { display: inline-flex; gap: 6px; align-items: center; font-size: 0.85rem; color: var(--muted); margin: 4px 0; }
+.attribution { font-size: 0.8rem; color: var(--muted); }
