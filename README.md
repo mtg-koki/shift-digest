@@ -340,6 +340,8 @@ AI 推論は Amazon Bedrock の Converse API（AWS SDK for JavaScript v3、オ�
 | Terraform | 実行しない | Lambda のイメージ参照・リソース変更は Terraform apply |
 | Web 再ビルド | しない | Web を変えたときだけ「Deploy web」（`data/` は削除・上書きしない） |
 
+**データの形（分類 ID・スキーマ）を変えたときは、Web を先にデプロイしてからバッチを動かす。** 古い画面は新しい形のデータを読めず「データを取得できませんでした」になる（2026-11-23 に分類変更で発生）。新しい画面は古い分類 ID も読み替えて表示できる。
+
 ## AWS へのデプロイ
 
 **認証（CloudFront Function）はアプリ層の Terraform に含まれ、配信開始時点から有効（KVS 未設定の間は全員 401）。**
