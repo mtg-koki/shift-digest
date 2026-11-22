@@ -196,6 +196,41 @@
       "priority": 2
     },
     {
+      "id": "bbc-japanese",
+      "name": "BBCニュース 日本語",
+      "homepageUrl": "https://www.bbc.com/japanese",
+      "feedUrl": "https://feeds.bbci.co.uk/japanese/rss.xml",
+      "categories": [
+        "world"
+      ],
+      "enabled": true,
+      "termsUrl": "https://www.bbc.co.uk/usingthebbc/terms/",
+      "reviewedAt": "2026-11-23",
+      "privateRssUseStatus": "conditional",
+      "aiMetadataStatus": "unreviewed",
+      "basis": {
+        "privateRss": "公式フィード（feeds.bbci.co.uk/japanese/rss.xml）は 2026-11-23 に更新中であることを確認。feeds.bbci.co.uk の robots.txt はこのパスを拒否していない。BBC の利用条件のページはこのツールから取得できず、内容は確認していない。自分専用・非営利の RSS リーダーとしての取得はユーザーの判断による。"
+      },
+      "conditions": [
+        {
+          "appliesTo": "privateRss",
+          "kind": "userConfirmation",
+          "text": "利用条件を確認できないまま、自分専用・非営利の RSS リーダーで取得することをユーザーが判断する。",
+          "confirmedAt": "2026-11-23"
+        },
+        {
+          "appliesTo": "privateRss",
+          "kind": "implemented",
+          "text": "自分だけが閲覧し、再配信しない。タイトルを改変せず、媒体名と元記事へのリンクを表示する。"
+        }
+      ],
+      "openQuestions": [
+        "BBC の利用条件（RSS・AI 利用）を未確認。AI 推薦の対象外。ブラウザーで条件を確認したら basis を更新する。"
+      ],
+      "attributionText": "出典: BBCニュース 日本語",
+      "priority": 2
+    },
+    {
       "id": "toyokeizai",
       "name": "東洋経済オンライン",
       "homepageUrl": "https://toyokeizai.net/",
@@ -461,7 +496,7 @@
       "categories": [
         "politics"
       ],
-      "note": "利用条件と公式 RSS の有無を確認できなかったため（2026-11-23 時点、このツールからはページを取得できなかった）手動リンクのみ。スクレイピングしない。"
+      "note": "旧 NHK ニュースの RSS（www3.nhk.or.jp/rss/news/）は 2026-08-09 以降更新が止まっている。現行サイトの公式 RSS は見つからなかったため手動リンクのみ。"
     },
     {
       "id": "jiji-politics",
@@ -481,7 +516,7 @@
         "finance",
         "world"
       ],
-      "note": "利用条件と公式 RSS の有無を確認できなかったため（2026-11-23 時点、このツールからはページを取得できなかった）手動リンクのみ。スクレイピングしない。"
+      "note": "ロイターは 2020 年に一般向け RSS の提供をやめており、公式 RSS がないため手動リンクのみ（非公式の代替フィードは使わない）。"
     },
     {
       "id": "toyokeizai-link",
@@ -500,16 +535,7 @@
         "finance",
         "economy"
       ],
-      "note": "利用条件と公式 RSS の有無を確認できなかったため（2026-11-23 時点、このツールからはページを取得できなかった）手動リンクのみ。スクレイピングしない。"
-    },
-    {
-      "id": "bbc-japanese",
-      "name": "BBCニュース 日本語版",
-      "url": "https://www.bbc.com/japanese",
-      "categories": [
-        "world"
-      ],
-      "note": "利用条件と公式 RSS の有無を確認できなかったため（2026-11-23 時点、このツールからはページを取得できなかった）手動リンクのみ。スクレイピングしない。"
+      "note": "日本語版の公式 RSS が見つからないため手動リンクのみ（非公式の代替フィードは使わない）。"
     },
     {
       "id": "jilpt",
