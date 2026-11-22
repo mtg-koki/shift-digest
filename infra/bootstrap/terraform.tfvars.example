@@ -2,6 +2,8 @@
 aws_region        = "ap-northeast-1"
 name_prefix       = "shift-digest"
 github_repository = "mtg-koki/shift-digest"
+# GitHub OIDC の sub の接頭辞（gh api repos/<owner>/<repo>/actions/oidc/customization/sub の sub_claim_prefix）
+github_oidc_sub_prefix = "repo:mtg-koki@224048400/shift-digest@1466341708"
 # アカウントに GitHub の OIDC プロバイダーが既にある場合は、その ARN を指定する（重複作成を避ける）
 #   aws iam list-open-id-connect-providers
 # github_oidc_provider_arn = "arn:aws:iam::123456789012:oidc-provider/token.actions.githubusercontent.com"

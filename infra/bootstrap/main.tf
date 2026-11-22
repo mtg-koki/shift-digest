@@ -16,6 +16,7 @@ locals {
   app_function_glob = "arn:${local.partition}:lambda:${local.region}:${local.account_id}:function:${local.p}-lambda-*"
   boundary_arn      = "arn:${local.partition}:iam::${local.account_id}:policy/${local.p}-policy-boundary-${local.i}"
 
+  github_sub_prefix        = var.github_oidc_sub_prefix != "" ? var.github_oidc_sub_prefix : "repo:${var.github_repository}"
   github_oidc_url          = "token.actions.githubusercontent.com"
   github_oidc_provider_arn = var.github_oidc_provider_arn != "" ? var.github_oidc_provider_arn : aws_iam_openid_connect_provider.github[0].arn
 }
@@ -223,7 +224,7 @@ data "aws_iam_policy_document" "gh_trust" {
     condition {
       test     = "StringEquals"
       variable = "${local.github_oidc_url}:sub"
-      values   = ["repo:${var.github_repository}:environment:${each.value}"]
+      values   = ["${local.github_sub_prefix}:environment:${each.value}"]
     }
   }
 }

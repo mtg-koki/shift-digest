@@ -34,6 +34,20 @@ variable "github_repository" {
   }
 }
 
+variable "github_oidc_sub_prefix" {
+  description = <<-EOT
+    GitHub OIDC トークンの sub の接頭辞（":environment:<名前>" より前）。空なら "repo:<github_repository>"。
+    不変 ID 形式のリポジトリでは "repo:<owner>@<owner_id>/<repo>@<repo_id>" になる。確認方法:
+      gh api repos/<owner>/<repo>/actions/oidc/customization/sub   （sub_claim_prefix の値）
+  EOT
+  type        = string
+  default     = ""
+  validation {
+    condition     = var.github_oidc_sub_prefix == "" || can(regex("^repo:[^*?]+$", var.github_oidc_sub_prefix))
+    error_message = "github_oidc_sub_prefix must start with repo: and contain no wildcards."
+  }
+}
+
 variable "github_oidc_provider_arn" {
   description = <<-EOT
     既存の GitHub OIDC プロバイダー（token.actions.githubusercontent.com）の ARN。
