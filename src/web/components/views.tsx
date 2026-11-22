@@ -6,7 +6,7 @@ import { emptyMarks, safeHref, type MarkAction, type Marks } from "../marks";
 
 /**
  * 画面の URL。静的配信（index.html 1 枚）のため、表示内容はクエリで表す。
- *   /                     新着順の一覧（RSS リーダー）と今日の読む候補。&source= &category= &q= &unread=1 &hidden=1 で絞り込み
+ *   /                     新着順の一覧（RSS リーダー）と今日の読む候補。&source= &category= &unread=1 &hidden=1 で絞り込み
  *   /?view=sources        情報源の状態（最終正常取得・エラー・AI 評価の対象か）と手動リンク
  *   /?view=saved          保存した記事（この端末のブラウザー内）
  *   /?view=archive        日別の記録の一覧

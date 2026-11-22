@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { formatJst, jstDate } from "../../shared/date";
-import { CATEGORY_IDS, CATEGORY_LABELS, type Article, type FeedSnapshot, type SourceStatus } from "../../shared/schema";
+import { CATEGORY_DESCRIPTIONS, CATEGORY_IDS, CATEGORY_LABELS, type Article, type FeedSnapshot, type SourceStatus } from "../../shared/schema";
 import type { FeedView } from "../data";
 import { filterArticles, type ReaderFilter } from "../filter";
 import { safeHref, type MarkAction, type Marks } from "../marks";
+import { X_LINKS } from "../x-links";
 import { ArticleRow, RecommendationCard, StatusBar, pageHref } from "./views";
 
 type Act = (a: MarkAction) => void;
@@ -49,46 +50,64 @@ function Recommendations({ view, marks, act, filter }: { view: Extract<FeedView,
   );
 }
 
+function Chip({ active, onClick, title, children }: { active: boolean; onClick: () => void; title?: string; children: ReactNode }) {
+  return (
+    <button type="button" className={active ? "chip chip-active" : "chip"} aria-pressed={active} onClick={onClick} title={title}>
+      {children}
+    </button>
+  );
+}
+
 function Filters({ feed, filter, onChange, count }: { feed: FeedSnapshot; filter: ReaderFilter; onChange: (f: ReaderFilter) => void; count: number }) {
   const sources = [...feed.sources].sort((a, b) => a.name.localeCompare(b.name, "ja"));
   return (
-    <form className="filters" role="search" onSubmit={(e) => e.preventDefault()}>
-      <label>
-        <span>媒体</span>
-        <select value={filter.source ?? ""} onChange={(e) => onChange({ ...filter, source: e.target.value || null })}>
-          <option value="">すべて</option>
-          {sources.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.name}（{s.articleCount}）
-            </option>
-          ))}
-        </select>
-      </label>
-      <label>
-        <span>カテゴリ</span>
-        <select value={filter.category ?? ""} onChange={(e) => onChange({ ...filter, category: (e.target.value || null) as ReaderFilter["category"] })}>
-          <option value="">すべて</option>
-          {CATEGORY_IDS.map((c) => (
-            <option key={c} value={c}>
-              {CATEGORY_LABELS[c]}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label className="grow">
-        <span>タイトルで検索</span>
-        <input type="search" value={filter.q} maxLength={100} placeholder="キーワード（空白区切りで AND）" onChange={(e) => onChange({ ...filter, q: e.target.value })} />
-      </label>
-      <label className="check">
-        <input type="checkbox" checked={filter.unreadOnly} onChange={(e) => onChange({ ...filter, unreadOnly: e.target.checked })} /> 未読のみ
-      </label>
-      <label className="check">
-        <input type="checkbox" checked={filter.showHidden} onChange={(e) => onChange({ ...filter, showHidden: e.target.checked })} /> 非表示も表示
-      </label>
-      <p className="muted small" aria-live="polite">
-        {count}件
-      </p>
-    </form>
+    <div className="filters">
+      <div className="filter" role="group" aria-label="カテゴリで絞り込み">
+        <Chip active={filter.category === null} onClick={() => onChange({ ...filter, category: null })}>
+          すべて
+        </Chip>
+        {CATEGORY_IDS.map((c) => (
+          <Chip key={c} active={filter.category === c} onClick={() => onChange({ ...filter, category: c })} title={CATEGORY_DESCRIPTIONS[c]}>
+            {CATEGORY_LABELS[c]}
+          </Chip>
+        ))}
+      </div>
+      <div className="filter" role="group" aria-label="媒体で絞り込み">
+        <Chip active={filter.source === null} onClick={() => onChange({ ...filter, source: null })}>
+          全媒体
+        </Chip>
+        {sources.map((s) => (
+          <Chip key={s.id} active={filter.source === s.id} onClick={() => onChange({ ...filter, source: s.id })}>
+            {s.name}（{s.articleCount}）
+          </Chip>
+        ))}
+      </div>
+      <div className="filter" role="group" aria-label="表示の切り替え">
+        <Chip active={filter.unreadOnly} onClick={() => onChange({ ...filter, unreadOnly: !filter.unreadOnly })}>
+          未読のみ
+        </Chip>
+        <Chip active={filter.showHidden} onClick={() => onChange({ ...filter, showHidden: !filter.showHidden })}>
+          非表示も表示
+        </Chip>
+        <span className="muted small filter-count" aria-live="polite">
+          {count}件
+        </span>
+      </div>
+    </div>
+  );
+}
+
+/** テーマごとの X 検索へのリンク（外部サイトを開くだけ。X のデータは取得しない） */
+function XLinks() {
+  return (
+    <nav className="filter x-links" aria-label="X でテーマの話題を見る">
+      <span className="muted small">X で話題を見る（外部サイト）:</span>
+      {X_LINKS.map((x) => (
+        <a key={x.id} className="chip" href={safeHref(x.url) ?? undefined} target="_blank" rel="noopener noreferrer">
+          {x.label}
+        </a>
+      ))}
+    </nav>
   );
 }
 
@@ -120,6 +139,7 @@ export function ReaderPage({ view, marks, act, filter, onFilter }: { view: FeedV
       )}
       {feed.sources.length === 0 && <p className="notice notice-info">有効な情報源がありません。情報源の設定（利用条件の確認と有効化）を確認してください。</p>}
       <Recommendations view={view} marks={marks} act={act} filter={filter} />
+      <XLinks />
 
       <section aria-labelledby="list">
         <h2 id="list" className="section-title">

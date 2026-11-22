@@ -4,7 +4,7 @@ Shift Digest: RSS で利用が認められる新着記事を新着順に並べ�
 
 ## 構成（AWS）
 
-- Web: Next.js App Router を静的エクスポート（`out/`）→ S3（非公開）+ CloudFront（OAC）。画面は `index.html` 1 枚で、クエリで切り替え（`/` 一覧＋読む候補、`&source= &category= &q= &unread=1 &hidden=1` 絞り込み、`/?view=sources|saved|archive`、`/?date=`）
+- Web: Next.js App Router を静的エクスポート（`out/`）→ S3（非公開）+ CloudFront（OAC）。画面は `index.html` 1 枚で、クエリで切り替え（`/` 一覧＋読む候補、`&source= &category= &unread=1 &hidden=1` 絞り込み、`/?view=sources|saved|archive`、`/?date=`）
 - アクセス制御: CloudFront Functions（viewer-request、全ビヘイビア）の Basic 認証 `infra/app/functions/basic-auth.js`。期待値は KeyValueStore の `basic-auth-sha256`（CLI で投入、Terraform・Git に入れない。未設定なら全員 401）
 - データ: ブラウザーが同一オリジンの `/data/*.json` を fetch。一覧は `feed.json`（保存期間内の記事・情報源の取得状態・手動リンク）、読む候補は `reports/YYYY-MM-DD.json`。既読・非表示・保存は localStorage のみ（同期なし）
 - バッチ: EventBridge Scheduler（毎朝 7:00 Asia/Tokyo）→ Lambda コンテナー（`Dockerfile.lambda`、x86_64、VPC なし）。条件付き GET（ETag / Last-Modified）

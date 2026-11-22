@@ -108,12 +108,11 @@ main.wrap { padding-top: 16px; padding-bottom: 32px; }
 .attribution { font-size: 0.8rem; color: var(--muted); }
 
 /* 一覧の絞り込み */
-.filters { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: flex-end; margin: 8px 0 12px; padding: 10px 12px; background: var(--card); border: 1px solid var(--line); border-radius: 8px; }
-.filters label { display: flex; flex-direction: column; font-size: 13px; color: var(--muted); gap: 2px; min-width: 0; }
-.filters label.grow { flex: 1 1 220px; }
-.filters label.check { flex-direction: row; align-items: center; gap: 4px; color: var(--fg); font-size: 14px; }
-.filters select, .filters input[type="search"] { font: inherit; font-size: 15px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--fg); max-width: 100%; }
-.filters p { margin: 0 0 4px auto; }
+.filters { margin: 8px 0 12px; }
+.filters .filter { margin-bottom: 8px; align-items: center; }
+button.chip { font: inherit; font-size: 0.9rem; cursor: pointer; }
+.filter-count { margin-left: auto; }
+.x-links { align-items: center; margin: 12px 0 4px; }
 /* 情報源の状態 */
 .table-wrap { overflow-x: auto; }
 table.sources { border-collapse: collapse; width: 100%; font-size: 14px; background: var(--card); }

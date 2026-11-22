@@ -168,6 +168,15 @@ describe("RSS reader list", () => {
     expect(out).toContain("今日の読む候補");
     expect(out).toContain("取得できなかった情報源があります");
     expect(out).toContain("出典");
+    // 絞り込みはボタン（検索欄・選択肢なし）
+    expect(out).toContain(`aria-pressed="true"`);
+    expect(out).toContain(">クラウド</button>");
+    expect(out).not.toContain(`type="search"`);
+    expect(out).not.toContain("<select");
+    // X はテーマごとの検索リンクだけ（データは取得しない）
+    expect(out).toContain("X で話題を見る");
+    expect(out).toContain("https://x.com/search?q=");
+    expect(out).toContain("f=top");
     // AI 対象外の情報源の記事も一覧に並ぶ
     const noAi = feed.articles.find((a) => !a.aiEligible)!;
     expect(out).toContain(noAi.title.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"));
@@ -181,9 +190,6 @@ describe("RSS reader list", () => {
     const src = all[0]!.sourceId;
     expect(filterArticles(all, { ...emptyFilter(), source: src }, m).every((a) => a.sourceId === src)).toBe(true);
     expect(filterArticles(all, { ...emptyFilter(), category: "politics" }, m).every((a) => a.category === "politics")).toBe(true);
-    const withAi = all.filter((a) => /ＡＩ|AI/i.test(a.title.normalize("NFKC")));
-    expect(filterArticles(all, { ...emptyFilter(), q: "ai" }, m)).toHaveLength(withAi.length);
-    expect(filterArticles(all, { ...emptyFilter(), q: "ai 存在しない語" }, m)).toHaveLength(0);
     const read = applyMark(m, { type: "read", id: all[0]!.id });
     expect(filterArticles(all, { ...emptyFilter(), unreadOnly: true }, read)).toHaveLength(all.length - 1);
     const hidden = applyMark(m, { type: "hide", id: all[0]!.id });
@@ -192,7 +198,7 @@ describe("RSS reader list", () => {
   });
 
   it("round-trips filters through the URL and rejects invalid values", () => {
-    const f = { ...emptyFilter(), source: "digital", category: "politics" as const, q: "AI 規制", unreadOnly: true };
+    const f = { ...emptyFilter(), source: "digital", category: "politics" as const, unreadOnly: true };
     expect(filterFromQuery(new URL("https://x" + filterToQuery(f)).searchParams)).toEqual(f);
     expect(filterFromQuery(new URLSearchParams("source=../x&category=evil"))).toEqual(emptyFilter());
   });
