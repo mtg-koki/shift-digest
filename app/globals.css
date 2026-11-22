@@ -112,6 +112,7 @@ main.wrap { padding-top: 16px; padding-bottom: 32px; }
 .filters .filter { margin-bottom: 8px; align-items: center; }
 button.chip { font: inherit; font-size: 0.9rem; cursor: pointer; }
 .filter-count { margin-left: auto; }
+.x-links { align-items: center; margin: 12px 0 4px; }
 /* 情報源の状態 */
 .table-wrap { overflow-x: auto; }
 table.sources { border-collapse: collapse; width: 100%; font-size: 14px; background: var(--card); }

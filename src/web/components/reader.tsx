@@ -7,6 +7,7 @@ import { CATEGORY_DESCRIPTIONS, CATEGORY_IDS, CATEGORY_LABELS, type Article, typ
 import type { FeedView } from "../data";
 import { filterArticles, type ReaderFilter } from "../filter";
 import { safeHref, type MarkAction, type Marks } from "../marks";
+import { X_LINKS } from "../x-links";
 import { ArticleRow, RecommendationCard, StatusBar, pageHref } from "./views";
 
 type Act = (a: MarkAction) => void;
@@ -96,6 +97,20 @@ function Filters({ feed, filter, onChange, count }: { feed: FeedSnapshot; filter
   );
 }
 
+/** テーマごとの X 検索へのリンク（外部サイトを開くだけ。X のデータは取得しない） */
+function XLinks() {
+  return (
+    <nav className="filter x-links" aria-label="X でテーマの話題を見る">
+      <span className="muted small">X で話題を見る（外部サイト）:</span>
+      {X_LINKS.map((x) => (
+        <a key={x.id} className="chip" href={safeHref(x.url) ?? undefined} target="_blank" rel="noopener noreferrer">
+          {x.label}
+        </a>
+      ))}
+    </nav>
+  );
+}
+
 export function ReaderPage({ view, marks, act, filter, onFilter }: { view: FeedView; marks: Marks; act: Act; filter: ReaderFilter; onFilter: (f: ReaderFilter) => void }) {
   const [limit, setLimit] = useState(PAGE);
   const list = useMemo(() => (view.kind === "ok" ? filterArticles(view.feed.articles, filter, marks) : []), [view, filter, marks]);
@@ -124,6 +139,7 @@ export function ReaderPage({ view, marks, act, filter, onFilter }: { view: FeedV
       )}
       {feed.sources.length === 0 && <p className="notice notice-info">有効な情報源がありません。情報源の設定（利用条件の確認と有効化）を確認してください。</p>}
       <Recommendations view={view} marks={marks} act={act} filter={filter} />
+      <XLinks />
 
       <section aria-labelledby="list">
         <h2 id="list" className="section-title">

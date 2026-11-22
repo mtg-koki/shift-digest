@@ -173,6 +173,10 @@ describe("RSS reader list", () => {
     expect(out).toContain(">クラウド</button>");
     expect(out).not.toContain(`type="search"`);
     expect(out).not.toContain("<select");
+    // X はテーマごとの検索リンクだけ（データは取得しない）
+    expect(out).toContain("X で話題を見る");
+    expect(out).toContain("https://x.com/search?q=");
+    expect(out).toContain("f=top");
     // AI 対象外の情報源の記事も一覧に並ぶ
     const noAi = feed.articles.find((a) => !a.aiEligible)!;
     expect(out).toContain(noAi.title.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"));
