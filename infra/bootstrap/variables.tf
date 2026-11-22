@@ -14,6 +14,16 @@ variable "name_prefix" {
   }
 }
 
+variable "name_index" {
+  description = "リソース名の末尾の連番（命名規則 <name_prefix>-<略称>[-<用途>]-<連番>）。アプリ層と同じ値にする"
+  type        = string
+  default     = "01"
+  validation {
+    condition     = can(regex("^[0-9]{2}$", var.name_index))
+    error_message = "name_index must be two digits (e.g. 01)."
+  }
+}
+
 variable "github_repository" {
   description = "OIDC を許可する GitHub リポジトリ（owner/name）。ワイルドカード不可"
   type        = string

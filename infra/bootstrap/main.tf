@@ -6,14 +6,15 @@ locals {
   partition  = data.aws_partition.current.partition
   region     = var.aws_region
   p          = var.name_prefix
+  i          = var.name_index
   tags       = merge({ project = var.name_prefix, managed-by = "terraform", layer = "bootstrap" }, var.tags)
 
-  state_bucket_name = "${local.p}-tfstate-${local.account_id}"
+  state_bucket_name = "${local.p}-s3-tfstate-${local.i}"
   # アプリ層の命名規則（ここで権限の範囲を決めるため、アプリ層もこの名前で作る）
-  app_bucket_arns   = ["arn:${local.partition}:s3:::${local.p}-site-${local.account_id}", "arn:${local.partition}:s3:::${local.p}-internal-${local.account_id}"]
-  app_role_arn_glob = "arn:${local.partition}:iam::${local.account_id}:role/${local.p}-app-*"
-  app_function_glob = "arn:${local.partition}:lambda:${local.region}:${local.account_id}:function:${local.p}-*"
-  boundary_arn      = "arn:${local.partition}:iam::${local.account_id}:policy/${local.p}-app-boundary"
+  app_bucket_arns   = ["arn:${local.partition}:s3:::${local.p}-s3-site-${local.i}", "arn:${local.partition}:s3:::${local.p}-s3-internal-${local.i}"]
+  app_role_arn_glob = "arn:${local.partition}:iam::${local.account_id}:role/${local.p}-role-app*"
+  app_function_glob = "arn:${local.partition}:lambda:${local.region}:${local.account_id}:function:${local.p}-lambda-*"
+  boundary_arn      = "arn:${local.partition}:iam::${local.account_id}:policy/${local.p}-policy-boundary-${local.i}"
 
   github_oidc_url          = "token.actions.githubusercontent.com"
   github_oidc_provider_arn = var.github_oidc_provider_arn != "" ? var.github_oidc_provider_arn : aws_iam_openid_connect_provider.github[0].arn
@@ -104,7 +105,7 @@ resource "aws_s3_bucket_policy" "tfstate" {
 # ECR（Lambda と同一リージョン）。タグは commit SHA で不変（IMMUTABLE）。latest は使わない
 # =====================================================================
 resource "aws_ecr_repository" "batch" {
-  name                 = "${local.p}-batch"
+  name                 = "${local.p}-ecr-${local.i}"
   image_tag_mutability = "IMMUTABLE"
   force_delete         = false
   image_scanning_configuration {
@@ -166,7 +167,7 @@ data "aws_iam_policy_document" "app_boundary" {
   statement {
     sid       = "Logs"
     actions   = ["logs:CreateLogStream", "logs:PutLogEvents"]
-    resources = ["arn:${local.partition}:logs:${local.region}:${local.account_id}:log-group:/aws/lambda/${local.p}-*"]
+    resources = ["arn:${local.partition}:logs:${local.region}:${local.account_id}:log-group:/aws/lambda/${local.p}-lambda-*"]
   }
   statement {
     sid       = "AppBuckets"
@@ -181,7 +182,7 @@ data "aws_iam_policy_document" "app_boundary" {
   statement {
     sid       = "Notify"
     actions   = ["sns:Publish"]
-    resources = ["arn:${local.partition}:sns:${local.region}:${local.account_id}:${local.p}-*"]
+    resources = ["arn:${local.partition}:sns:${local.region}:${local.account_id}:${local.p}-sns-*"]
   }
   statement {
     sid       = "InvokeBatch"
@@ -191,7 +192,7 @@ data "aws_iam_policy_document" "app_boundary" {
 }
 
 resource "aws_iam_policy" "app_boundary" {
-  name        = "${local.p}-app-boundary"
+  name        = "${local.p}-policy-boundary-${local.i}"
   description = "Permissions boundary for ${local.p} application roles"
   policy      = data.aws_iam_policy_document.app_boundary.json
 }
@@ -229,7 +230,7 @@ data "aws_iam_policy_document" "gh_trust" {
 
 # ---------- plan 用（読み取り＋state ロックファイルの作成・削除のみ） ----------
 resource "aws_iam_role" "gh_plan" {
-  name                 = "${local.p}-gh-plan"
+  name                 = "${local.p}-role-ghplan-${local.i}"
   assume_role_policy   = data.aws_iam_policy_document.gh_trust["plan"].json
   max_session_duration = 3600
 }
@@ -265,14 +266,14 @@ data "aws_iam_policy_document" "gh_plan" {
 }
 
 resource "aws_iam_role_policy" "gh_plan" {
-  name   = "terraform-plan"
+  name   = "${local.p}-policy-ghplan-${local.i}"
   role   = aws_iam_role.gh_plan.id
   policy = data.aws_iam_policy_document.gh_plan.json
 }
 
 # ---------- deploy 用（Terraform apply・イメージ push・Web 配置・バッチ手動実行） ----------
 resource "aws_iam_role" "gh_deploy" {
-  name                 = "${local.p}-gh-deploy"
+  name                 = "${local.p}-role-ghdeploy-${local.i}"
   assume_role_policy   = data.aws_iam_policy_document.gh_trust["deploy"].json
   max_session_duration = 3600
 }
@@ -341,7 +342,7 @@ data "aws_iam_policy_document" "gh_deploy" {
     resources = [local.app_function_glob, "${local.app_function_glob}:*"]
   }
 
-  # --- IAM: 名前が <prefix>-app-* で、Permissions Boundary 付きのロールだけ作成・変更できる ---
+  # --- IAM: 名前が <prefix>-role-app* で、Permissions Boundary 付きのロールだけ作成・変更できる ---
   statement {
     sid       = "IamCreateWithBoundary"
     actions   = ["iam:CreateRole", "iam:PutRolePolicy", "iam:PutRolePermissionsBoundary"]
@@ -392,8 +393,8 @@ data "aws_iam_policy_document" "gh_deploy" {
       "logs:TagResource", "logs:UntagResource", "logs:ListTagsForResource", "logs:TagLogGroup", "logs:ListTagsLogGroup",
     ]
     resources = [
-      "arn:${local.partition}:logs:${local.region}:${local.account_id}:log-group:/aws/lambda/${local.p}-*",
-      "arn:${local.partition}:logs:${local.region}:${local.account_id}:log-group:/aws/lambda/${local.p}-*:*",
+      "arn:${local.partition}:logs:${local.region}:${local.account_id}:log-group:/aws/lambda/${local.p}-lambda-*",
+      "arn:${local.partition}:logs:${local.region}:${local.account_id}:log-group:/aws/lambda/${local.p}-lambda-*:*",
     ]
   }
   statement {
@@ -406,7 +407,7 @@ data "aws_iam_policy_document" "gh_deploy" {
   statement {
     sid       = "Scheduler"
     actions   = ["scheduler:CreateSchedule", "scheduler:UpdateSchedule", "scheduler:DeleteSchedule", "scheduler:GetSchedule", "scheduler:TagResource", "scheduler:UntagResource", "scheduler:ListTagsForResource"]
-    resources = ["arn:${local.partition}:scheduler:${local.region}:${local.account_id}:schedule/default/${local.p}-*"]
+    resources = ["arn:${local.partition}:scheduler:${local.region}:${local.account_id}:schedule/default/${local.p}-sch-*"]
   }
 
   # --- SNS（失敗通知） ---
@@ -417,14 +418,14 @@ data "aws_iam_policy_document" "gh_deploy" {
       "sns:Subscribe", "sns:Unsubscribe", "sns:GetSubscriptionAttributes", "sns:SetSubscriptionAttributes",
       "sns:ListSubscriptionsByTopic", "sns:TagResource", "sns:UntagResource", "sns:ListTagsForResource",
     ]
-    resources = ["arn:${local.partition}:sns:${local.region}:${local.account_id}:${local.p}-*"]
+    resources = ["arn:${local.partition}:sns:${local.region}:${local.account_id}:${local.p}-sns-*"]
   }
 
   # --- AWS Budgets ---
   statement {
     sid       = "Budgets"
     actions   = ["budgets:ViewBudget", "budgets:ModifyBudget", "budgets:TagResource", "budgets:UntagResource", "budgets:ListTagsForResource"]
-    resources = ["arn:${local.partition}:budgets::${local.account_id}:budget/${local.p}-*"]
+    resources = ["arn:${local.partition}:budgets::${local.account_id}:budget/${local.p}-budget-*"]
   }
 
   # --- Terraform の data source が参照する AWS 管理の情報 ---
@@ -436,7 +437,7 @@ data "aws_iam_policy_document" "gh_deploy" {
 }
 
 resource "aws_iam_role_policy" "gh_deploy" {
-  name   = "terraform-deploy"
+  name   = "${local.p}-policy-ghdeploy-${local.i}"
   role   = aws_iam_role.gh_deploy.id
   policy = data.aws_iam_policy_document.gh_deploy.json
 }

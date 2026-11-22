@@ -6,14 +6,15 @@ locals {
   partition  = data.aws_partition.current.partition
   region     = var.aws_region
   p          = var.name_prefix
+  i          = var.name_index
   tags       = merge({ project = var.name_prefix, managed-by = "terraform", layer = "app" }, var.tags)
 
-  # バケット名・ロール名は bootstrap の CI 権限の範囲（<prefix>-site-*, <prefix>-internal-*, <prefix>-app-*）に合わせる
-  site_bucket_name     = "${local.p}-site-${local.account_id}"
-  internal_bucket_name = "${local.p}-internal-${local.account_id}"
-  function_name        = "${local.p}-batch"
+  # バケット名・ロール名は bootstrap の CI 権限の範囲（<prefix>-s3-site-NN, <prefix>-s3-internal-NN, <prefix>-role-app*, <prefix>-lambda-*, <prefix>-sch-*, <prefix>-sns-*, <prefix>-budget-*）に合わせる
+  site_bucket_name     = "${local.p}-s3-site-${local.i}"
+  internal_bucket_name = "${local.p}-s3-internal-${local.i}"
+  function_name        = "${local.p}-lambda-${local.i}"
   public_data_prefix   = "data/"
-  ecr_repository_name  = var.ecr_repository_name != "" ? var.ecr_repository_name : "${local.p}-batch"
+  ecr_repository_name  = var.ecr_repository_name != "" ? var.ecr_repository_name : "${local.p}-ecr-${local.i}"
 }
 
 # =====================================================================
@@ -158,7 +159,7 @@ resource "aws_s3_bucket_policy" "internal" {
 # OAC は「S3 を直接読ませない」ための仕組みで、閲覧者の認証ではない（認証は下の CloudFront Function）
 # =====================================================================
 resource "aws_cloudfront_origin_access_control" "site" {
-  name                              = "${local.p}-site"
+  name                              = "${local.p}-oac-${local.i}"
   origin_access_control_origin_type = "s3"
   signing_behavior                  = "always"
   signing_protocol                  = "sigv4"
@@ -172,12 +173,12 @@ resource "aws_cloudfront_origin_access_control" "site" {
 #   CLI で投入する（Git・state に残さない）。未投入の間は全員 401（fail closed）
 # =====================================================================
 resource "aws_cloudfront_key_value_store" "auth" {
-  name    = "${local.p}-auth"
+  name    = "${local.p}-kvs-${local.i}"
   comment = "Basic auth credential hash for ${local.p} (value is set out-of-band)"
 }
 
 resource "aws_cloudfront_function" "auth" {
-  name                         = "${local.p}-basic-auth"
+  name                         = "${local.p}-cff-${local.i}"
   runtime                      = "cloudfront-js-2.0"
   comment                      = "Basic auth for the private dashboard"
   publish                      = true
@@ -201,7 +202,7 @@ data "aws_cloudfront_response_headers_policy" "security" {
 
 resource "aws_cloudfront_distribution" "site" {
   enabled             = true
-  comment             = "${local.p} private dashboard"
+  comment             = "${local.p}-cf-${local.i} private dashboard"
   default_root_object = "index.html"
   is_ipv6_enabled     = true
   http_version        = "http2and3"
@@ -322,7 +323,7 @@ data "aws_iam_policy_document" "lambda_trust" {
 }
 
 resource "aws_iam_role" "batch" {
-  name                 = "${local.p}-app-batch"
+  name                 = "${local.p}-role-appbatch-${local.i}"
   assume_role_policy   = data.aws_iam_policy_document.lambda_trust.json
   permissions_boundary = var.permissions_boundary_arn
 }
@@ -395,7 +396,7 @@ data "aws_iam_policy_document" "batch" {
 }
 
 resource "aws_iam_role_policy" "batch" {
-  name   = "batch"
+  name   = "${local.p}-policy-appbatch-${local.i}"
   role   = aws_iam_role.batch.id
   policy = data.aws_iam_policy_document.batch.json
 }
@@ -464,7 +465,7 @@ data "aws_iam_policy_document" "scheduler_trust" {
 }
 
 resource "aws_iam_role" "scheduler" {
-  name                 = "${local.p}-app-scheduler"
+  name                 = "${local.p}-role-appscheduler-${local.i}"
   assume_role_policy   = data.aws_iam_policy_document.scheduler_trust.json
   permissions_boundary = var.permissions_boundary_arn
 }
@@ -477,13 +478,13 @@ data "aws_iam_policy_document" "scheduler" {
 }
 
 resource "aws_iam_role_policy" "scheduler" {
-  name   = "invoke-batch"
+  name   = "${local.p}-policy-appscheduler-${local.i}"
   role   = aws_iam_role.scheduler.id
   policy = data.aws_iam_policy_document.scheduler.json
 }
 
 resource "aws_scheduler_schedule" "daily" {
-  name                         = "${local.p}-daily"
+  name                         = "${local.p}-sch-${local.i}"
   description                  = "Run ${local.function_name} every morning"
   state                        = var.schedule_enabled ? "ENABLED" : "DISABLED"
   schedule_expression          = var.schedule_expression
@@ -510,7 +511,7 @@ resource "aws_scheduler_schedule" "daily" {
 # 失敗通知（SNS メール）と予算
 # =====================================================================
 resource "aws_sns_topic" "alerts" {
-  name = "${local.p}-alerts"
+  name = "${local.p}-sns-${local.i}"
 }
 
 # 宛先は sensitive。plan の表示（公開リポジトリの Actions ログ）にメールアドレスを出さない
@@ -524,7 +525,7 @@ resource "aws_sns_topic_subscription" "alerts" {
 # アカウント全体の月額コスト（Bedrock を含む）。通知するだけで、課金は止まらない
 resource "aws_budgets_budget" "monthly" {
   count        = var.budget_monthly_usd > 0 && nonsensitive(length(var.budget_emails)) > 0 ? 1 : 0
-  name         = "${local.p}-monthly"
+  name         = "${local.p}-budget-${local.i}"
   budget_type  = "COST"
   limit_amount = format("%.2f", var.budget_monthly_usd)
   limit_unit   = "USD"

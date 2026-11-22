@@ -14,13 +14,23 @@ variable "name_prefix" {
   }
 }
 
+variable "name_index" {
+  description = "リソース名の末尾の連番（命名規則 <name_prefix>-<略称>[-<用途>]-<連番>）。アプリ層と同じ値にする"
+  type        = string
+  default     = "01"
+  validation {
+    condition     = can(regex("^[0-9]{2}$", var.name_index))
+    error_message = "name_index must be two digits (e.g. 01)."
+  }
+}
+
 variable "permissions_boundary_arn" {
   description = "bootstrap の出力 app_permissions_boundary_arn"
   type        = string
 }
 
 variable "ecr_repository_name" {
-  description = "bootstrap で作った ECR リポジトリ名（既定 <name_prefix>-batch）"
+  description = "bootstrap で作った ECR リポジトリ名（既定 <name_prefix>-ecr-<name_index>）"
   type        = string
   default     = ""
 }

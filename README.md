@@ -21,7 +21,7 @@ GitHub Actions ──OIDC──▶ AWS  ├ Publish batch image: docker build �
                         │   └ 期待値: CloudFront KeyValueStore の basic-auth-sha256（CLI で投入）
                         │ OAC（S3 を直接読ませないための署名。閲覧者の認証ではない）
                         ▼
-                 S3: <prefix>-site-<account>（非公開・Block Public Access 有効）
+                 S3: <prefix>-s3-site-01（非公開・Block Public Access 有効）
                    ├ index.html / 404.html / _next/static/…   … Web（CI が配置）
                    └ data/                                    … 画面用 JSON（Lambda が書く）
                        ├ index.json（latest 参照・日付一覧・最終正常更新）
@@ -30,21 +30,26 @@ GitHub Actions ──OIDC──▶ AWS  ├ Publish batch image: docker build �
 
 EventBridge Scheduler（cron(0 7 * * ? *)、Asia/Tokyo、Flexible window OFF）
    ▼ 非同期呼び出し（失敗時 1 回再試行 → それでも失敗なら SNS メール通知）
-Lambda <prefix>-batch（コンテナー、x86_64、VPC なし＝NAT Gateway なし、タイムアウト 900 秒）
+Lambda <prefix>-lambda-01（コンテナー、x86_64、VPC なし＝NAT Gateway なし、タイムアウト 900 秒）
    ├ 利用条件を確認した RSS からメタデータだけ取得（https のみ・内部アドレス拒否・サイズ/時間制限）
    ├ URL 正規化・重複除去（保守的）・既出判定
    ├ ルールで候補を絞る（キーワード・新しさ・媒体ごとの上限）
    ├ Amazon Bedrock（Converse）でタイトル等から関心度・分類・推薦理由 → スキーマ検証
    │   （AI 送信が許可された情報源だけ。モックはルールベース評価）
    ├ 読む候補を決定的なルールで選ぶ → S3 site の data/ に保存（data/ 以外には書けない）
-   └ S3: <prefix>-internal-<account>（CloudFront からは読めない）
+   └ S3: <prefix>-s3-internal-01（CloudFront からは読めない）
          ├ state/seen.json（既出記事・評価キャッシュ・日別 AI 使用量）
          └ locks/batch.lock（多重実行防止）
 CloudWatch Logs（保存 30 日） / SNS（失敗通知） / AWS Budgets（予算通知）
 
-Terraform state: S3 <prefix>-tfstate-<account>（アプリとは別バケット、S3 ネイティブロック）
-ECR: <prefix>-batch（Lambda と同一リージョン、タグ不変、古いイメージは自動削除）
+Terraform state: S3 <prefix>-s3-tfstate-01（アプリとは別バケット、S3 ネイティブロック）
+ECR: <prefix>-ecr-01（Lambda と同一リージョン、タグ不変、古いイメージは自動削除）
 ```
+
+リソース名は `<prefix>-<略称>[-<用途>]-<連番>`（既定 `shift-digest-…-01`。連番は Terraform 変数 `name_index`）。
+略称: `s3`（tfstate / site / internal）、`ecr`、`lambda`、`cf`（ディストリビューションのコメント）、`oac`、`cff`（CloudFront Function）、
+`kvs`、`sch`（Scheduler）、`sns`、`budget`、`role`（ghplan / ghdeploy / appbatch / appscheduler）、`policy`（boundary ほか）。
+S3 バケット名は全世界で一意なので、使用済みなら `name_index` を変えるか、名前を調整する。
 
 内部データ（既出判定・評価キャッシュ・ロック）は CloudFront の取得範囲に含まれない別バケットに置く。
 バケットポリシーの書き間違いで内部データが配信される事故を構造的に防げ、追加費用はない。
@@ -320,9 +325,9 @@ terraform output
 作成されるもの: state 用 S3（バージョニング・SSE-S3・公開禁止・TLS 必須・`prevent_destroy`）、ECR（タグ不変・スキャン・タグなし 1 日／タグ付き 15 個を残して自動削除）、
 GitHub OIDC プロバイダー（既存なら作らない）、CI 用ロール 2 つ、アプリ用ロールの Permissions Boundary。
 
-- `<prefix>-gh-plan`（Environment `plan` のみ）: `ReadOnlyAccess`（秘密情報・認証用 KVS の値の読み取りは明示拒否）＋ state ロックファイルの作成・削除
-- `<prefix>-gh-deploy`（Environment `production` のみ）: state、ECR push、`<prefix>-*` の S3・Lambda・ログ・スケジュール・SNS・予算、CloudFront（認証関数・KVS ストアを含む）。
-  KVS のキー（認証情報）の操作は拒否。IAM は `<prefix>-app-*` のロールを Permissions Boundary 付きでのみ作成でき、境界の削除・管理ポリシーのアタッチは拒否
+- `<prefix>-role-ghplan-01`（Environment `plan` のみ）: `ReadOnlyAccess`（秘密情報・認証用 KVS の値の読み取りは明示拒否）＋ state ロックファイルの作成・削除
+- `<prefix>-role-ghdeploy-01`（Environment `production` のみ）: state、ECR push、`<prefix>-s3-site-01` / `-s3-internal-01`・`<prefix>-lambda-*`・ログ・`<prefix>-sch-*`・`<prefix>-sns-*`・`<prefix>-budget-*`、CloudFront（認証関数・KVS ストアを含む）。
+  KVS のキー（認証情報）の操作は拒否。IAM は `<prefix>-role-app*` のロールを Permissions Boundary 付きでのみ作成でき、境界の削除・管理ポリシーのアタッチは拒否
 - 信頼条件は `repo:<owner>/<repo>:environment:<plan|production>` の完全一致、`aud = sts.amazonaws.com`
 
 ### 2. state の移行（任意: ブートストラップ自身の state をリモートへ）
@@ -377,11 +382,11 @@ Environment secrets（任意）: `ALERT_EMAILS`・`BUDGET_EMAILS` に `["you@exa
 ## 手動実行・ログ・失敗の確認
 
 ```bash
-aws lambda invoke --function-name shift-digest-batch --invocation-type Event \
+aws lambda invoke --function-name shift-digest-lambda-01 --invocation-type Event \
   --cli-binary-format raw-in-base64-out --payload '{}' /dev/null           # 通常
-aws lambda invoke --function-name shift-digest-batch --invocation-type Event \
+aws lambda invoke --function-name shift-digest-lambda-01 --invocation-type Event \
   --cli-binary-format raw-in-base64-out --payload '{"force":true}' /dev/null   # 当日分の作り直し（評価はキャッシュ再利用）
-aws logs tail /aws/lambda/shift-digest-batch --since 1d
+aws logs tail /aws/lambda/shift-digest-lambda-01 --since 1d
 ```
 
 | 見るもの | 場所 |
