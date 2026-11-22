@@ -1,22 +1,32 @@
 import { z } from "zod";
 
 /** 分類。表示順もこの順。 */
-export const CATEGORY_IDS = ["technology", "employment", "ownership", "policy"] as const;
-export const CategoryIdSchema = z.enum(CATEGORY_IDS);
-export type CategoryId = z.infer<typeof CategoryIdSchema>;
+export const CATEGORY_IDS = ["cloud", "ai", "politics", "economy", "finance", "world"] as const;
+/** 分類 ID（厳密）。設定ファイルと AI の出力はこれで検証する */
+export const StrictCategoryIdSchema = z.enum(CATEGORY_IDS);
+export type CategoryId = z.infer<typeof StrictCategoryIdSchema>;
+
+/** 旧分類（〜2026-11）の ID。保存済みの state・レポートを読むときだけ読み替える */
+const LEGACY_CATEGORY: Record<string, CategoryId> = { technology: "ai", employment: "economy", ownership: "economy", policy: "politics" };
+/** 保存済みデータ用の分類 ID。旧分類の ID は新しい分類に読み替える */
+export const CategoryIdSchema = z.preprocess((v) => (typeof v === "string" && v in LEGACY_CATEGORY ? LEGACY_CATEGORY[v] : v), StrictCategoryIdSchema);
 
 export const CATEGORY_LABELS: Record<CategoryId, string> = {
-  technology: "技術",
-  employment: "雇用",
-  ownership: "所有",
-  policy: "制度",
+  cloud: "クラウド",
+  ai: "AI",
+  politics: "政治",
+  economy: "経済",
+  finance: "金融",
+  world: "世界情勢",
 };
 
 export const CATEGORY_DESCRIPTIONS: Record<CategoryId, string> = {
-  technology: "AI、ロボット、クラウド、自動化、導入事例",
-  employment: "採用、職務、賃金、働き方、業務代替",
-  ownership: "事業、資本、計算資源、プラットフォーム、権利",
-  policy: "法規制、税制、社会保障、著作権",
+  cloud: "クラウド、開発基盤、インフラ、導入・移行・運用の事例",
+  ai: "生成 AI、AI の新機能・業務活用・導入事例・ルール整備",
+  politics: "政策、国会、選挙、外交・防衛、行政",
+  economy: "国内外の経済、産業、企業、経済政策",
+  finance: "金融、市場、株価、為替、金利",
+  world: "国際情勢、外交、紛争、各国の動き",
 };
 
 /** UTC の ISO 8601（例: 2026-11-21T22:00:00.000Z）。保存する時刻はすべてこの形式。 */

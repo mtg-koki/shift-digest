@@ -137,7 +137,7 @@ describe("runDaily", () => {
     const items = [1, 2, 3, 4, 5].map((n) => feedItem(n, 1, NOW));
     const ai = new FakeAssessor((input) => {
       const [a, b, c, d, e] = input.map((i) => i.articleId);
-      const ok = (id: string | undefined, extra = {}) => ({ articleId: id, category: "technology", relevanceScore: 90, reason: "理由", assessmentBasis: "metadata_only", ...extra });
+      const ok = (id: string | undefined, extra = {}) => ({ articleId: id, category: "ai", relevanceScore: 90, reason: "理由", assessmentBasis: "metadata_only", ...extra });
       return {
         assessments: [
           ok(a),

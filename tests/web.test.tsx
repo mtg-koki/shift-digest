@@ -67,7 +67,7 @@ describe("web data loading and display", () => {
     expect(out).toContain("最終正常更新");
     expect(out).toContain("一部の情報源から取得できませんでした");
     expect(out).toContain("同じタイトルの記事が他の媒体にもあります");
-    expect(out).toContain('href="/?category=policy"');
+    expect(out).toContain('href="/?category=politics"');
   });
 
   it("does not label AI-ineligible articles as low quality", async () => {
@@ -93,13 +93,13 @@ describe("web data loading and display", () => {
   it("keeps the date in category links on a date page and links archive entries", async () => {
     const storage = await seeded();
     const out = html(<ReportPage view={await new DigestReader(storage).byDate(DATE)} category={null} date={DATE} />);
-    expect(out).toContain(`href="/?date=${DATE}&amp;category=technology"`);
+    expect(out).toContain(`href="/?date=${DATE}&amp;category=ai"`);
     expect(html(<ArchivePage view={await new DigestReader(storage).archive()} />)).toContain(`href="/?date=${DATE}"`);
   });
 
   it("filters by category and shows messages for empty candidates/lists", async () => {
     const view = await new DigestReader(await seeded()).latest();
-    expect(html(<ReportPage view={view} category="ownership" date={null} />)).toContain("表示できる");
+    expect(html(<ReportPage view={view} category="finance" date={null} />)).toContain("表示できる");
     const r = JSON.parse(sampleReport);
     r.articles = [];
     r.recommendations = [];
@@ -180,7 +180,7 @@ describe("RSS reader list", () => {
     const m = emptyMarks();
     const src = all[0]!.sourceId;
     expect(filterArticles(all, { ...emptyFilter(), source: src }, m).every((a) => a.sourceId === src)).toBe(true);
-    expect(filterArticles(all, { ...emptyFilter(), category: "policy" }, m).every((a) => a.category === "policy")).toBe(true);
+    expect(filterArticles(all, { ...emptyFilter(), category: "politics" }, m).every((a) => a.category === "politics")).toBe(true);
     const withAi = all.filter((a) => /ＡＩ|AI/i.test(a.title.normalize("NFKC")));
     expect(filterArticles(all, { ...emptyFilter(), q: "ai" }, m)).toHaveLength(withAi.length);
     expect(filterArticles(all, { ...emptyFilter(), q: "ai 存在しない語" }, m)).toHaveLength(0);
@@ -192,7 +192,7 @@ describe("RSS reader list", () => {
   });
 
   it("round-trips filters through the URL and rejects invalid values", () => {
-    const f = { ...emptyFilter(), source: "digital", category: "policy" as const, q: "AI 規制", unreadOnly: true };
+    const f = { ...emptyFilter(), source: "digital", category: "politics" as const, q: "AI 規制", unreadOnly: true };
     expect(filterFromQuery(new URL("https://x" + filterToQuery(f)).searchParams)).toEqual(f);
     expect(filterFromQuery(new URLSearchParams("source=../x&category=evil"))).toEqual(emptyFilter());
   });
@@ -203,7 +203,7 @@ describe("RSS reader list", () => {
     expect(out).toContain("最終正常取得");
     expect(out).toContain("local feed file not readable");
     expect(out).toContain("対象外");
-    expect(out).toContain("手動リンク（RSS なし）");
+    expect(out).toContain("手動リンク（自動取得していない媒体）");
     expect(out).not.toContain("Users");
     expect(out).not.toContain("Projects");
   });

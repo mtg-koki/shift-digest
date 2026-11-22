@@ -2,7 +2,7 @@ import { CATEGORY_DESCRIPTIONS, CATEGORY_IDS, CATEGORY_LABELS } from "../../shar
 import type { AssessInput } from "./types";
 
 /** プロンプトの版。変えたら既存の評価を再評価する（評価キーに含める） */
-export const PROMPT_VERSION = "rank-v1";
+export const PROMPT_VERSION = "rank-v2";
 
 const categoryLines = CATEGORY_IDS.map((c) => `- ${c}（${CATEGORY_LABELS[c]}）: ${CATEGORY_DESCRIPTIONS[c]}`).join("\n");
 
@@ -31,7 +31,7 @@ ${categoryLines}
 - 入力にある記事だけを、各記事 1 回ずつ評価してください。入力にない articleId を作らないでください。
 
 出力は次の形の JSON オブジェクト 1 つだけにしてください。前後に説明文やコードフェンスを付けないでください。
-{"assessments":[{"articleId":"…","category":"technology","relevanceScore":80,"reason":"…","assessmentBasis":"metadata_only"}]}`;
+{"assessments":[{"articleId":"…","category":"ai","relevanceScore":80,"reason":"…","assessmentBasis":"metadata_only"}]}`;
 
 export function buildUserContent(items: AssessInput[], interestLabels: string[]): string {
   const payload = {

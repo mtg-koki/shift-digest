@@ -104,7 +104,7 @@ describe("BedrockAssessor", () => {
     const client = {
       send: async (c: unknown) => {
         sent.push(c as ConverseCommand);
-        return converseResult(`{"assessments":[{"articleId":"${ID}","category":"technology","relevanceScore":80,"reason":"関心テーマのAIエージェントに関する新サービスのため","assessmentBasis":"metadata_only"}]}`);
+        return converseResult(`{"assessments":[{"articleId":"${ID}","category":"ai","relevanceScore":80,"reason":"関心テーマのAIエージェントに関する新サービスのため","assessmentBasis":"metadata_only"}]}`);
       },
     };
     const s = new BedrockAssessor({ modelId: "jp.anthropic.claude-haiku-5-5", maxOutputTokens: 1024, maxRetries: 2, timeoutMs: 60000 }, client as never);

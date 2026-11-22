@@ -1,11 +1,11 @@
 import { z } from "zod";
-import { CategoryIdSchema } from "../../shared/schema";
+import { StrictCategoryIdSchema } from "../../shared/schema";
 
 /** AI 出力 1 件の形（厳密）。余分なキー（url 等）は受け付けない */
 export const AiAssessmentSchema = z
   .object({
     articleId: z.string(),
-    category: CategoryIdSchema.nullable(),
+    category: StrictCategoryIdSchema.nullable(),
     relevanceScore: z.number().int().min(0).max(100),
     reason: z.string().trim().min(1).max(120),
     assessmentBasis: z.literal("metadata_only"),

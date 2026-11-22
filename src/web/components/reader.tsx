@@ -247,8 +247,8 @@ export function SourcesPage({ view }: { view: FeedView }) {
       </div>
       {feed.manualLinks.length > 0 && (
         <>
-          <h3 className="section-title">手動リンク（RSS なし）</h3>
-          <p className="note">公式 RSS が見つからない媒体です。自動取得（スクレイピング）はしていません。</p>
+          <h3 className="section-title">手動リンク（自動取得していない媒体）</h3>
+          <p className="note">公式 RSS が見つからない、または利用条件の確認待ちの媒体です。自動取得（スクレイピング）はしていません。</p>
           <ul className="rows">
             {feed.manualLinks.map((m) => {
               const href = safeHref(m.url);

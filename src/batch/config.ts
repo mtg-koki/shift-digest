@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { z } from "zod";
-import { CategoryIdSchema, JstDateSchema } from "../shared/schema";
+import { StrictCategoryIdSchema, JstDateSchema } from "../shared/schema";
 
 /**
  * 利用条件の判断。「RSS の私的利用（取得・保存・自分専用画面への表示）」と「AI へのメタデータ送信」を別々に持つ。
@@ -44,7 +44,7 @@ export const SourceSchema = z
     /** 公式の RSS 1.0 / RSS 2.0 / Atom。https のみ（file: はローカル検証用で ALLOW_FILE_FEEDS=true のときだけ） */
     feedUrl: z.string().url(),
     /** 分類（先頭が評価のない記事の表示分類） */
-    categories: z.array(CategoryIdSchema).min(1).max(4),
+    categories: z.array(StrictCategoryIdSchema).min(1).max(4),
     /** 既定は無効。利用条件を確認してから有効にする */
     enabled: z.boolean().default(false),
     /** 判断の根拠にした規約・ライセンス・案内ページ */
@@ -94,7 +94,7 @@ export const ManualLinkSchema = z.object({
   id: z.string().regex(/^[a-z0-9-]+$/),
   name: z.string().min(1).max(100),
   url: httpsUrl,
-  categories: z.array(CategoryIdSchema).min(1).max(4),
+  categories: z.array(StrictCategoryIdSchema).min(1).max(4),
   note: z.string().max(300).default(""),
 });
 export type ManualLink = z.infer<typeof ManualLinkSchema>;
