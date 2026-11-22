@@ -22,7 +22,7 @@ import {
 } from "../shared/schema";
 import type { Storage } from "../shared/storage";
 import { AssessRejected, parseAssessments, PROMPT_VERSION, type Assessor } from "./assess";
-import { interestsHash, sourcePolicy, type BatchEnv, type Interests, type ManualLink, type Source } from "./config";
+import { defaultCategory, interestsHash, sourcePolicy, type BatchEnv, type Interests, type ManualLink, type Source } from "./config";
 import type { FeedFetcher } from "./feed";
 import { dedupe, displayCategory, inWindow, rankRecommendations, ruleAssessment, selectForAssessment, toCandidate, type Candidate } from "./select";
 
@@ -406,7 +406,11 @@ async function buildFeed(
       const days = fetchable.get(a.sourceId)!.retentionDays ?? env.FEED_RETENTION_DAYS;
       return now.getTime() - Date.parse(sortKey(a)) <= days * 86400_000;
     })
-    .map((a) => ({ ...a, aiEligible: sourcePolicy(fetchable.get(a.sourceId)!).ai }))
+    .map((a) => {
+      const src = fetchable.get(a.sourceId)!;
+      // 情報源の設定（分類・AI 送信の扱い）の変更は、前回までの記事にも反映する
+      return { ...a, category: a.assessment?.category ?? defaultCategory(src), aiEligible: sourcePolicy(src).ai };
+    })
     .sort((a, b) => sortKey(b).localeCompare(sortKey(a)) || a.id.localeCompare(b.id))
     .slice(0, env.FEED_MAX_ARTICLES);
   const counts = new Map<string, number>();

@@ -302,6 +302,15 @@ describe("runDaily", () => {
     expect(feed2.sources.find((x) => x.id === "b")).toMatchObject({ lastResult: "updated", lastError: null });
   });
 
+  it("applies a changed source category to articles carried over from the previous feed (304)", async () => {
+    const { storage } = tmpStorage();
+    await runDaily(deps(storage, { fetcher: fakeFetcher({ a: [feedItem(1, 1, NOW)] }), sources: [source("a", { ai: "unreviewed" })] }));
+    const moved = source("a", { ai: "unreviewed", extra: { categories: ["cloud"] } });
+    await runDaily(deps(storage, { fetcher: fakeFetcher({ a: "304" }), sources: [moved], now: () => NEXT_DAY }));
+    const feed = (await read(storage, STORAGE_KEYS.feed, FeedSnapshotSchema))!;
+    expect(feed.articles.map((x) => x.category)).toEqual(["cloud"]);
+  });
+
   it("respects a per-source minimum fetch interval", async () => {
     const { storage } = tmpStorage();
     const s = source("a", { extra: { minFetchIntervalHours: 48 } });
