@@ -39,7 +39,7 @@ export function source(
     homepageUrl: `https://${id}.example.com/`,
     feedUrl: `https://${id}.example.com/feed`,
     enabled: opts.enabled ?? true,
-    categories: ["technology"],
+    categories: ["ai"],
     priority: opts.priority ?? 1,
     termsUrl: "https://example.com/terms",
     reviewedAt: "2026-11-20",
@@ -98,7 +98,7 @@ export class FakeAssessor implements Assessor {
 
 export function defaultOutput(items: AssessInput[]) {
   return {
-    assessments: items.map((i) => ({ articleId: i.articleId, category: "technology", relevanceScore: 80, reason: "関心テーマに関係する語がタイトルにあるため", assessmentBasis: "metadata_only" })),
+    assessments: items.map((i) => ({ articleId: i.articleId, category: "ai", relevanceScore: 80, reason: "関心テーマに関係する語がタイトルにあるため", assessmentBasis: "metadata_only" })),
   };
 }
 

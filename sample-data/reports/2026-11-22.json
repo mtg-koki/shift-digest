@@ -33,7 +33,7 @@
       "feedCategories": [
         "報道発表"
       ],
-      "category": "policy",
+      "category": "politics",
       "aiEligible": true,
       "assessment": {
         "category": null,
@@ -56,7 +56,7 @@
       "publishedAt": "2026-11-22T03:47:07.000Z",
       "fetchedAt": "2026-11-22T10:47:10.355Z",
       "feedCategories": [],
-      "category": "policy",
+      "category": "politics",
       "aiEligible": true,
       "assessment": {
         "category": null,
@@ -79,7 +79,7 @@
       "publishedAt": "2026-11-21T22:47:07.000Z",
       "fetchedAt": "2026-11-22T10:47:10.355Z",
       "feedCategories": [],
-      "category": "policy",
+      "category": "politics",
       "aiEligible": true,
       "assessment": {
         "category": null,
@@ -104,7 +104,7 @@
       "feedCategories": [
         "AI"
       ],
-      "category": "technology",
+      "category": "ai",
       "duplicateOf": "28de1162fb7d769b",
       "aiEligible": true
     },
@@ -117,7 +117,7 @@
       "publishedAt": "2026-11-22T07:47:07.000Z",
       "fetchedAt": "2026-11-22T10:47:10.355Z",
       "feedCategories": [],
-      "category": "technology",
+      "category": "ai",
       "aiEligible": true,
       "assessment": {
         "category": null,
@@ -140,7 +140,7 @@
       "publishedAt": "2026-11-22T06:47:07.000Z",
       "fetchedAt": "2026-11-22T10:47:10.355Z",
       "feedCategories": [],
-      "category": "technology",
+      "category": "ai",
       "aiEligible": true,
       "assessment": {
         "category": null,
@@ -165,7 +165,7 @@
       "feedCategories": [
         "Cloud"
       ],
-      "category": "technology",
+      "category": "ai",
       "aiEligible": true,
       "assessment": {
         "category": null,
@@ -188,7 +188,7 @@
       "publishedAt": "2026-11-22T04:47:07.000Z",
       "fetchedAt": "2026-11-22T10:47:10.355Z",
       "feedCategories": [],
-      "category": "technology",
+      "category": "ai",
       "aiEligible": true,
       "assessment": {
         "category": null,
@@ -211,7 +211,7 @@
       "publishedAt": "2026-11-22T02:47:07.000Z",
       "fetchedAt": "2026-11-22T10:47:10.355Z",
       "feedCategories": [],
-      "category": "technology",
+      "category": "ai",
       "aiEligible": true,
       "assessment": {
         "category": null,
@@ -234,7 +234,7 @@
       "publishedAt": "2026-11-22T00:47:07.000Z",
       "fetchedAt": "2026-11-22T10:47:10.355Z",
       "feedCategories": [],
-      "category": "technology",
+      "category": "ai",
       "aiEligible": true,
       "assessment": {
         "category": null,
@@ -257,7 +257,7 @@
       "publishedAt": null,
       "fetchedAt": "2026-11-22T10:47:10.355Z",
       "feedCategories": [],
-      "category": "technology",
+      "category": "ai",
       "aiEligible": true
     },
     {
@@ -269,7 +269,7 @@
       "publishedAt": "2026-11-22T06:47:07.000Z",
       "fetchedAt": "2026-11-22T10:47:10.355Z",
       "feedCategories": [],
-      "category": "employment",
+      "category": "economy",
       "aiEligible": false
     },
     {
@@ -281,7 +281,7 @@
       "publishedAt": "2026-11-22T01:47:07.000Z",
       "fetchedAt": "2026-11-22T10:47:10.355Z",
       "feedCategories": [],
-      "category": "employment",
+      "category": "economy",
       "aiEligible": false
     }
   ],

@@ -6,7 +6,7 @@
       "homepageUrl": "https://example.com/",
       "feedUrl": "file:.offline-feeds/tech.xml",
       "categories": [
-        "technology"
+        "ai"
       ],
       "enabled": true,
       "termsUrl": "https://example.com/sample-terms",
@@ -26,8 +26,8 @@
       "homepageUrl": "https://example.com/",
       "feedUrl": "file:.offline-feeds/policy.xml",
       "categories": [
-        "policy",
-        "ownership"
+        "politics",
+        "finance"
       ],
       "enabled": true,
       "termsUrl": "https://example.com/sample-gov-terms",
@@ -59,7 +59,7 @@
       "homepageUrl": "https://example.com/",
       "feedUrl": "file:.offline-feeds/no-ai.xml",
       "categories": [
-        "employment"
+        "economy"
       ],
       "enabled": true,
       "termsUrl": "https://example.com/sample-media-terms",
@@ -88,7 +88,7 @@
       "homepageUrl": "https://example.com/",
       "feedUrl": "file:.offline-feeds/atom.xml",
       "categories": [
-        "technology"
+        "ai"
       ],
       "enabled": true,
       "termsUrl": "https://example.com/sample-terms-2",
@@ -115,7 +115,7 @@
       "homepageUrl": "https://example.com/",
       "feedUrl": "file:.offline-feeds/prohibited.xml",
       "categories": [
-        "ownership"
+        "finance"
       ],
       "enabled": true,
       "termsUrl": "https://example.com/sample-prohibited",
@@ -132,7 +132,7 @@
       "homepageUrl": "https://example.com/",
       "feedUrl": "file:.offline-feeds/missing.xml",
       "categories": [
-        "technology"
+        "ai"
       ],
       "enabled": true,
       "termsUrl": "https://example.com/sample-terms",
@@ -152,7 +152,7 @@
       "name": "【架空】RSS のない媒体",
       "url": "https://example.com/no-rss",
       "categories": [
-        "employment"
+        "economy"
       ],
       "note": "【架空】RSS がないため手動リンクのみ"
     }

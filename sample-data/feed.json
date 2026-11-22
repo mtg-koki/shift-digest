@@ -12,7 +12,7 @@
       "publishedAt": null,
       "fetchedAt": "2026-11-22T10:47:10.355Z",
       "feedCategories": [],
-      "category": "technology",
+      "category": "ai",
       "aiEligible": true
     },
     {
@@ -26,7 +26,7 @@
       "feedCategories": [
         "AI"
       ],
-      "category": "technology",
+      "category": "ai",
       "duplicateOf": "28de1162fb7d769b",
       "aiEligible": true
     },
@@ -39,7 +39,7 @@
       "publishedAt": "2026-11-22T07:47:07.000Z",
       "fetchedAt": "2026-11-22T10:47:10.355Z",
       "feedCategories": [],
-      "category": "technology",
+      "category": "ai",
       "aiEligible": true,
       "assessment": {
         "category": null,
@@ -62,7 +62,7 @@
       "publishedAt": "2026-11-22T06:47:07.000Z",
       "fetchedAt": "2026-11-22T10:47:10.355Z",
       "feedCategories": [],
-      "category": "employment",
+      "category": "economy",
       "aiEligible": false
     },
     {
@@ -74,7 +74,7 @@
       "publishedAt": "2026-11-22T06:47:07.000Z",
       "fetchedAt": "2026-11-22T10:47:10.355Z",
       "feedCategories": [],
-      "category": "technology",
+      "category": "ai",
       "aiEligible": true,
       "assessment": {
         "category": null,
@@ -99,7 +99,7 @@
       "feedCategories": [
         "Cloud"
       ],
-      "category": "technology",
+      "category": "ai",
       "aiEligible": true,
       "assessment": {
         "category": null,
@@ -124,7 +124,7 @@
       "feedCategories": [
         "報道発表"
       ],
-      "category": "policy",
+      "category": "politics",
       "aiEligible": true,
       "assessment": {
         "category": null,
@@ -147,7 +147,7 @@
       "publishedAt": "2026-11-22T04:47:07.000Z",
       "fetchedAt": "2026-11-22T10:47:10.355Z",
       "feedCategories": [],
-      "category": "technology",
+      "category": "ai",
       "aiEligible": true,
       "assessment": {
         "category": null,
@@ -170,7 +170,7 @@
       "publishedAt": "2026-11-22T03:47:07.000Z",
       "fetchedAt": "2026-11-22T10:47:10.355Z",
       "feedCategories": [],
-      "category": "policy",
+      "category": "politics",
       "aiEligible": true,
       "assessment": {
         "category": null,
@@ -193,7 +193,7 @@
       "publishedAt": "2026-11-22T02:47:07.000Z",
       "fetchedAt": "2026-11-22T10:47:10.355Z",
       "feedCategories": [],
-      "category": "technology",
+      "category": "ai",
       "aiEligible": true,
       "assessment": {
         "category": null,
@@ -216,7 +216,7 @@
       "publishedAt": "2026-11-22T01:47:07.000Z",
       "fetchedAt": "2026-11-22T10:47:10.355Z",
       "feedCategories": [],
-      "category": "employment",
+      "category": "economy",
       "aiEligible": false
     },
     {
@@ -228,7 +228,7 @@
       "publishedAt": "2026-11-22T00:47:07.000Z",
       "fetchedAt": "2026-11-22T10:47:10.355Z",
       "feedCategories": [],
-      "category": "technology",
+      "category": "ai",
       "aiEligible": true,
       "assessment": {
         "category": null,
@@ -251,7 +251,7 @@
       "publishedAt": "2026-11-21T22:47:07.000Z",
       "fetchedAt": "2026-11-22T10:47:10.355Z",
       "feedCategories": [],
-      "category": "policy",
+      "category": "politics",
       "aiEligible": true,
       "assessment": {
         "category": null,
@@ -272,7 +272,7 @@
       "name": "【架空】サンプル技術ニュース",
       "homepageUrl": "https://example.com/",
       "categories": [
-        "technology"
+        "ai"
       ],
       "attributionText": "【架空】出典: サンプル技術ニュース",
       "aiEnabled": true,
@@ -287,8 +287,8 @@
       "name": "【架空】サンプル官公庁",
       "homepageUrl": "https://example.com/",
       "categories": [
-        "policy",
-        "ownership"
+        "politics",
+        "finance"
       ],
       "attributionText": "【架空】出典: サンプル官公庁ウェブサイト",
       "aiEnabled": true,
@@ -303,7 +303,7 @@
       "name": "【架空】AI送信未確認の媒体",
       "homepageUrl": "https://example.com/",
       "categories": [
-        "employment"
+        "economy"
       ],
       "attributionText": "【架空】出典: AI送信未確認の媒体",
       "aiEnabled": false,
@@ -318,7 +318,7 @@
       "name": "【架空】取得に失敗する媒体",
       "homepageUrl": "https://example.com/",
       "categories": [
-        "technology"
+        "ai"
       ],
       "attributionText": "【架空】出典: 取得失敗の媒体",
       "aiEnabled": false,
@@ -335,7 +335,7 @@
       "name": "【架空】RSS のない媒体",
       "url": "https://example.com/no-rss",
       "categories": [
-        "employment"
+        "economy"
       ],
       "note": "【架空】RSS がないため手動リンクのみ"
     }

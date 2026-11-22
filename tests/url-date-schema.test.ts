@@ -72,7 +72,7 @@ describe("JST date handling", () => {
 });
 
 describe("source terms and policy", () => {
-  const base = { id: "x", name: "X", homepageUrl: "https://example.com/", feedUrl: "https://example.com/f", categories: ["technology"] };
+  const base = { id: "x", name: "X", homepageUrl: "https://example.com/", feedUrl: "https://example.com/f", categories: ["ai"] };
   it("defaults to disabled and unreviewed (not permitted)", () => {
     const [s] = parseSources({ sources: [base] });
     expect(s!.enabled).toBe(false);
@@ -127,7 +127,7 @@ describe("AI prompt and output validation", () => {
     expect(content).not.toMatch(/https?:/);
   });
   const ids = new Set(["0123456789abcdef", "fedcba9876543210"]);
-  const ok = { articleId: "0123456789abcdef", category: "technology", relevanceScore: 80, reason: "関心テーマのAIエージェントに関する新サービスのため", assessmentBasis: "metadata_only" };
+  const ok = { articleId: "0123456789abcdef", category: "ai", relevanceScore: 80, reason: "関心テーマのAIエージェントに関する新サービスのため", assessmentBasis: "metadata_only" };
   it("accepts valid output", () => {
     expect(parseAssessments({ assessments: [ok] }, ids).accepted.get(ok.articleId)!.relevanceScore).toBe(80);
     expect(parseAssessments({ assessments: [{ ...ok, category: null }] }, ids).accepted.size).toBe(1);
@@ -136,7 +136,8 @@ describe("AI prompt and output validation", () => {
     ["unknown id", { ...ok, articleId: "aaaaaaaaaaaaaaaa" }],
     ["score out of range", { ...ok, relevanceScore: 101 }],
     ["non-integer score", { ...ok, relevanceScore: 50.5 }],
-    ["unknown category", { ...ok, category: "finance" }],
+    ["unknown category", { ...ok, category: "sports" }],
+    ["legacy category id", { ...ok, category: "technology" }],
     ["wrong basis", { ...ok, assessmentBasis: "full_text" }],
     ["extra key (url)", { ...ok, url: "https://evil.example" }],
     ["URL in reason", { ...ok, reason: "詳細は https://evil.example" }],
@@ -156,5 +157,13 @@ describe("rule-based keyword matching", () => {
   it("matches case/width-insensitively", () => {
     expect(keywordMatches("ＡＩ ＡＧＥＮＴ platform", interests).map((m) => m.themeId)).toEqual(["ai-agents"]);
     expect(keywordMatches("天気予報", interests)).toEqual([]);
+  });
+});
+
+describe("legacy category ids", () => {
+  it("reads stored data with old category ids as the new categories", async () => {
+    const { CategoryIdSchema } = await import("../src/shared/schema");
+    expect(["technology", "employment", "ownership", "policy"].map((c) => CategoryIdSchema.parse(c))).toEqual(["ai", "economy", "economy", "politics"]);
+    expect(() => CategoryIdSchema.parse("sports")).toThrow();
   });
 });

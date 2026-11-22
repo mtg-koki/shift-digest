@@ -1,34 +1,39 @@
 {
   "themes": [
     {
-      "id": "ai-agents",
-      "label": "AIエージェント",
-      "keywords": ["AIエージェント", "エージェント", "agent", "agentic"]
+      "id": "cloud",
+      "label": "クラウド・開発基盤",
+      "keywords": ["クラウド", "AWS", "Azure", "Google Cloud", "インフラ", "サーバーレス", "Kubernetes", "コンテナ", "IaC", "Terraform", "移行", "DevOps", "データベース", "cloud", "serverless"]
     },
     {
-      "id": "genai-adoption",
-      "label": "生成AIの実用化",
-      "keywords": ["生成AI", "生成 AI", "LLM", "大規模言語モデル", "導入事例", "generative AI", "GenAI", "Copilot", "Claude", "Gemini", "ChatGPT"]
+      "id": "genai",
+      "label": "生成AIの新機能・業務活用",
+      "keywords": ["生成AI", "生成 AI", "AIエージェント", "エージェント", "LLM", "大規模言語モデル", "ChatGPT", "Claude", "Gemini", "Copilot", "導入事例", "業務活用", "agent"]
     },
     {
-      "id": "cloud-automation",
-      "label": "クラウド・インフラの自動化",
-      "keywords": ["クラウド", "インフラ", "自動化", "IaC", "Terraform", "Kubernetes", "サーバーレス", "cloud", "infrastructure", "automation", "DevOps"]
+      "id": "ai-rules",
+      "label": "AIのルール整備",
+      "keywords": ["AI法", "AI 法", "AI規制", "ガイドライン", "著作権", "AI事業者", "安全性", "AI Act", "regulation"]
     },
     {
-      "id": "ai-work",
-      "label": "AIと雇用・職務の変化",
-      "keywords": ["雇用", "職務", "働き方", "人材", "リスキリング", "賃金", "労働", "jobs", "workforce", "employment", "labor"]
+      "id": "politics",
+      "label": "政策・国会・選挙・外交",
+      "keywords": ["国会", "法案", "選挙", "内閣", "首相", "政府", "与党", "野党", "外交", "防衛", "予算", "閣議"]
     },
     {
-      "id": "ai-market",
-      "label": "AI事業・計算資源・市場支配",
-      "keywords": ["データセンター", "計算資源", "GPU", "半導体", "買収", "出資", "競争", "独占", "data center", "compute", "acquisition", "antitrust"]
+      "id": "economy",
+      "label": "経済・産業・企業",
+      "keywords": ["経済", "景気", "GDP", "物価", "賃上げ", "産業", "企業", "決算", "経済対策", "半導体", "データセンター"]
     },
     {
-      "id": "ai-policy",
-      "label": "AI規制・著作権・制度",
-      "keywords": ["規制", "著作権", "法案", "ガイドライン", "AI法", "AI 法", "パブリックコメント", "regulation", "copyright", "AI Act", "policy"]
+      "id": "finance",
+      "label": "金融・市場",
+      "keywords": ["日銀", "金利", "利上げ", "為替", "円安", "円高", "株価", "日経平均", "FRB", "債券", "市場"]
+    },
+    {
+      "id": "world",
+      "label": "世界情勢",
+      "keywords": ["米国", "中国", "ロシア", "ウクライナ", "中東", "欧州", "EU", "国連", "首脳会談", "紛争", "制裁", "関税"]
     }
   ]
 }
