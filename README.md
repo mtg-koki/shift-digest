@@ -12,7 +12,7 @@
 ## 構成
 
 ```
-                                   （コード更新時・手動・承認付き）
+                                   （コード更新時・手動。apply だけ承認付き）
 GitHub Actions ──OIDC──▶ AWS  ├ Publish batch image: docker build → ECR（タグ = commit SHA）
                               ├ Terraform: plan → 承認 → apply（Lambda のイメージ参照もここで更新）
                               └ Deploy web: next build（静的エクスポート）→ S3（data/ 以外）
@@ -335,7 +335,7 @@ AI 推論は Amazon Bedrock の Converse API（AWS SDK for JavaScript v3、オ�
 
 ## 定期更新とコードデプロイの違い
 
-| | 定期更新（7:00・12:00・18:00 JST） | コードデプロイ（手動・承認付き） |
+| | 定期更新（7:00・12:00・18:00 JST） | コードデプロイ（手動。apply だけ承認付き） |
 |---|---|---|
 | 起動 | EventBridge Scheduler → Lambda | GitHub Actions |
 | 変わるもの | S3 `data/` の JSON、内部バケットの state | Lambda のイメージ（情報源・関心テーマの設定を含む）／Web 静的ファイル／AWS リソース |
@@ -389,7 +389,7 @@ Basic 認証の値は Terraform で扱わないため state に残らない。
 
 ### 3. GitHub の設定
 
-Environments: `plan`（保護なし）、`production`（**Required reviewers に自分**）。
+Environments: `plan`（保護なし）、`production`（main ブランチのみ。承認なし）、`apply-approval`（main ブランチのみ・**Required reviewers に自分**。AWS の権限は持たず、Terraform apply の前の承認だけに使う）。
 
 Repository variables（秘密情報ではない）:
 
@@ -406,9 +406,9 @@ Environment secrets（任意）: `ALERT_EMAILS`・`BUDGET_EMAILS` に `["you@exa
 
 ### 4. 初回デプロイの順序
 
-1. Actions → **Publish batch image**（承認後、ECR に `<commit SHA>` で push）
+1. Actions → **Publish batch image**（ECR に `<commit SHA>` で push）
 2. `infra/app/release.auto.tfvars` の `image_tag` をその SHA に変更してコミット・push
-3. Actions → **Terraform**（plan）で差分を確認 → （apply）→ `production` の承認
+3. Actions → **Terraform**（plan）で差分を確認 → （apply）→ `apply-approval` の承認
 4. 「認証の設定」の手順で KVS にハッシュを投入し、未認証で 401・正しい資格情報で表示されることを確認
 5. 出力の `site_bucket` / `batch_function_name` を GitHub 変数に設定し、Actions → **Deploy web**
 6. 利用条件を確認した情報源を `config/sources.json` で有効化 → イメージ再 push → `image_tag` 更新 → apply

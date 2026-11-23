@@ -1,6 +1,8 @@
 # Terraform plan / apply（手動実行のみ。自動 apply はしない。destroy は CI では行わない＝README の手順で手元から）。
 # - plan : GitHub Environment "plan"（読み取り専用ロール。state のロックファイルだけ書ける）
-# - apply: GitHub Environment "production"（必須レビュアーの承認後。承認後に plan を作り直し、その plan をそのまま apply）
+# - apply: GitHub Environment "apply-approval"（必須レビュアー。AWS の権限は持たない）の承認後に、
+#          "production"（AWS のデプロイ用ロール）で plan を作り直し、その plan をそのまま apply。
+#          Web 配置・イメージ発行・バッチ実行も "production" を使うが、承認は apply だけに求める
 # plan ファイルはランナー内だけで使い、アーティファクトとして保存しない。
 # 注意: 公開リポジトリのワークフローログは誰でも読める。メールアドレス等は sensitive 変数で渡し、plan に表示させない。
 name: Terraform
@@ -57,9 +59,18 @@ jobs:
       - name: Plan
         run: terraform -chdir=infra/app plan -input=false -lock-timeout=5m -no-color
 
-  apply:
+  # apply の承認だけを行うジョブ（AWS の認証情報は使わない）
+  approve-apply:
     if: inputs.action == 'apply'
     needs: plan
+    runs-on: ubuntu-latest
+    environment: apply-approval
+    steps:
+      - run: echo "apply approved"
+
+  apply:
+    if: inputs.action == 'apply'
+    needs: approve-apply
     runs-on: ubuntu-latest
     environment: production
     steps:
