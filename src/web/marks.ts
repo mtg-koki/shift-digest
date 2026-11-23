@@ -16,7 +16,11 @@ export interface Marks {
   saved: Record<string, SavedItem>;
 }
 
-export type MarkAction = { type: "read" | "unread" | "hide" | "unhide" | "unsave"; id: string } | { type: "save"; id: string; item: Omit<SavedItem, "savedAt"> };
+export type MarkAction =
+  | { type: "read" | "unread" | "hide" | "unhide" | "unsave"; id: string }
+  | { type: "save"; id: string; item: Omit<SavedItem, "savedAt"> }
+  /** 表示中の記事をまとめて既読にする */
+  | { type: "readMany"; ids: string[] };
 
 export const MARKS_KEY = "shift-digest:marks:v1";
 const RETENTION_MS = 180 * 86400_000;
@@ -57,6 +61,9 @@ export function applyMark(m: Marks, a: MarkAction, now = new Date()): Marks {
   switch (a.type) {
     case "read":
       next.read[a.id] = at;
+      break;
+    case "readMany":
+      for (const id of a.ids) if (!next.read[id]) next.read[id] = at;
       break;
     case "unread":
       delete next.read[a.id];

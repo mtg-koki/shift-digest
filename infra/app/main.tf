@@ -277,7 +277,7 @@ resource "aws_cloudfront_distribution" "site" {
 }
 
 # =====================================================================
-# Lambda（日次バッチ。VPC に接続しない＝NAT Gateway 不要）
+# Lambda（定期バッチ。VPC に接続しない＝NAT Gateway 不要）
 # =====================================================================
 data "aws_ecr_repository" "batch" {
   name = local.ecr_repository_name
@@ -447,7 +447,7 @@ resource "aws_lambda_function_event_invoke_config" "batch" {
 }
 
 # =====================================================================
-# EventBridge Scheduler（毎朝 7:00 Asia/Tokyo）
+# EventBridge Scheduler（既定 7:00・12:00・18:00 Asia/Tokyo）
 # =====================================================================
 data "aws_iam_policy_document" "scheduler_trust" {
   statement {
@@ -485,7 +485,7 @@ resource "aws_iam_role_policy" "scheduler" {
 
 resource "aws_scheduler_schedule" "daily" {
   name                         = "${local.p}-sch-${local.i}"
-  description                  = "Run ${local.function_name} every morning"
+  description                  = "Run ${local.function_name} on schedule"
   state                        = var.schedule_enabled ? "ENABLED" : "DISABLED"
   schedule_expression          = var.schedule_expression
   schedule_expression_timezone = var.schedule_timezone

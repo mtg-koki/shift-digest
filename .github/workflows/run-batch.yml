@@ -1,13 +1,13 @@
-# 日次バッチの手動実行（Lambda を非同期で 1 回起動するだけ。Terraform もデプロイも行わない）。
+# バッチの手動実行（Lambda を非同期で 1 回起動するだけ。Terraform もデプロイも行わない）。
 # Bedrock の従量課金が発生し得るため、承認必須の Environment "production" で実行する。
-# 当日分があればスキップ。force=true でも要約キャッシュを再利用し、AI 呼び出しは日次上限内に収まる。
+# 何度実行してもよい（取得して一覧を更新し、当日分に追記する）。評価はキャッシュを再利用し、AI 呼び出しは日次上限内に収まる。
 name: Run daily batch
 
 on:
   workflow_dispatch:
     inputs:
       force:
-        description: 当日分を作り直す（要約キャッシュを再利用）
+        description: 条件付き GET を使わずに全件取り直す（評価キャッシュは再利用）
         type: boolean
         default: false
 

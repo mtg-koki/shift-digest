@@ -84,7 +84,9 @@ export const ArticleSchema = z.object({
   duplicateOf: z.string().optional(),
   /** AI に送るかどうか（情報源の「AI へのメタデータ送信」の扱いで決まる） */
   aiEligible: z.boolean(),
-  /** 評価済みならその結果（AI 対象外の情報源では無い） */
+  /** タイトルに含まれる関心テーマのキーワード（キーワード一致。テーマごとに 1 語） */
+  interestMatches: z.array(z.object({ theme: z.string().max(80), keyword: z.string().max(80) })).max(20).optional(),
+  /** 評価済みならその結果（AI 評価、または AI を使わないキーワード一致の評価） */
   assessment: AssessmentSchema.optional(),
 });
 export type Article = z.infer<typeof ArticleSchema>;

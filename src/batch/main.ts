@@ -1,8 +1,8 @@
 import { runFromEnv } from "./bootstrap";
 
 /**
- * 日次バッチのローカル実行用 CLI（Lambda では lambda.ts の handler を使う）。
- *   --force             当日分が既にあっても作り直す（評価はキャッシュを再利用、AI 呼び出しは日次上限内）
+ * バッチのローカル実行用 CLI（Lambda では lambda.ts の handler を使う）。
+ *   --force             条件付き GET・取得間隔を使わずに全件取り直す（評価はキャッシュを再利用、AI 呼び出しは日次上限内）
  *   --sources <file>    情報源設定ファイル（既定: SOURCES_FILE または config/sources.json）
  *   --allow-file-feeds  file: の取得元を許可（ローカルのサンプルフィード専用）
  * 終了コード: 0=成功/スキップ, 1=失敗

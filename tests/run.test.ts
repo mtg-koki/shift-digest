@@ -71,9 +71,9 @@ describe("runDaily", () => {
     const noai = report.articles.find((a) => a.sourceId === "noai")!;
     const ok = report.articles.find((a) => a.sourceId === "ok")!;
     expect(ai.sentIds).toEqual([ok.id]);
-    // AI 対象外の記事は新着一覧に載るが、評価は無い
+    // AI 対象外の記事は新着一覧に載り、AI ではなくキーワード一致（外部に送らない）で評価される
     expect(noai).toMatchObject({ aiEligible: false });
-    expect(noai.assessment).toBeUndefined();
+    expect(noai.assessment).toMatchObject({ assessor: { provider: "rules" }, relevanceScore: 0 });
     expect(report.recommendations.map((r) => r.articleId)).toEqual([ok.id]);
   });
 
@@ -94,19 +94,71 @@ describe("runDaily", () => {
     expect(state.usageByDate["2026-11-21"]!.aiArticles).toBe(30);
   });
 
-  it("is idempotent: same-day re-run is skipped; force reuses cached assessments", async () => {
+  it("same-day re-runs fetch again and add new articles to the day (no skip); cached assessments are reused", async () => {
     const { storage } = tmpStorage();
-    const fetcher = fakeFetcher({ a: [feedItem(1, 1, NOW), feedItem(2, 2, NOW)] });
     const ai1 = new FakeAssessor();
-    await runDaily(deps(storage, { fetcher, assessor: ai1 }));
-    const first = await storage.getText(STORAGE_KEYS.report("2026-11-21"));
+    await runDaily(deps(storage, { fetcher: fakeFetcher({ a: [feedItem(1, 1, NOW), feedItem(2, 2, NOW)] }), assessor: ai1 }));
+    const first = (await read(storage, STORAGE_KEYS.report("2026-11-21"), DailyReportSchema))!;
+    // 数時間後（同じ日）に再実行: 新しい記事が 1 件増えている。スキップせずに取得し、当日分に追記する
+    const LATER = new Date(NOW.getTime() + 5 * 3600_000);
     const ai2 = new FakeAssessor();
-    expect((await runDaily(deps(storage, { fetcher, assessor: ai2 }))).status).toBe("skipped");
-    expect(await storage.getText(STORAGE_KEYS.report("2026-11-21"))).toBe(first);
+    const f2 = fakeFetcher({ a: [feedItem(3, 0, LATER), feedItem(1, 1, NOW), feedItem(2, 2, NOW)] });
+    expect(await runDaily(deps(storage, { fetcher: f2, assessor: ai2, now: () => LATER }))).toMatchObject({ status: "ok", date: "2026-11-21", articles: 3 });
+    expect(f2.called).toEqual(["a"]);
+    // 評価済みの記事は再送しない
+    expect(ai2.sentIds).toHaveLength(1);
+    const report = (await read(storage, STORAGE_KEYS.report("2026-11-21"), DailyReportSchema))!;
+    // 先に取得した記事の初回取得日時は変わらない
+    const old = report.articles.find((a) => a.id === first.articles[0]!.id)!;
+    expect(old.fetchedAt).toBe(first.articles[0]!.fetchedAt);
+    const feed = (await read(storage, STORAGE_KEYS.feed, FeedSnapshotSchema))!;
+    expect(feed.articles).toHaveLength(3);
+    expect(feed.generatedAt > first.generatedAt).toBe(true);
+
+    // さらに再実行して変更なし（304）でも、当日分の記事は残る
     const ai3 = new FakeAssessor();
-    expect(await runDaily(deps(storage, { fetcher, assessor: ai3, force: true }))).toMatchObject({ status: "ok", articles: 2 });
-    expect(ai2.calls).toHaveLength(0);
+    const LATER2 = new Date(NOW.getTime() + 8 * 3600_000);
+    expect(await runDaily(deps(storage, { fetcher: fakeFetcher({ a: "304" }), assessor: ai3, now: () => LATER2 }))).toMatchObject({ status: "ok", articles: 3 });
     expect(ai3.calls).toHaveLength(0);
+    // force は条件付き GET を使わずに取り直す（評価はキャッシュを再利用）
+    const ai4 = new FakeAssessor();
+    const f4 = fakeFetcher({ a: [feedItem(1, 1, NOW)] });
+    expect(await runDaily(deps(storage, { fetcher: f4, assessor: ai4, now: () => LATER2, force: true }))).toMatchObject({ status: "ok", articles: 3 });
+    expect(f4.validators.a).toBeUndefined();
+    expect(ai4.calls).toHaveLength(0);
+  });
+
+  it("a manual run after midnight does not stop the scheduled morning run from fetching", async () => {
+    const { storage } = tmpStorage();
+    // 01:30 JST に手動実行 → 07:00 JST の定期実行
+    const NIGHT = new Date("2026-11-20T16:30:00.000Z");
+    await runDaily(deps(storage, { fetcher: fakeFetcher({ a: [feedItem(1, 1, NIGHT)] }), now: () => NIGHT }));
+    const f = fakeFetcher({ a: [feedItem(2, 1, NOW), feedItem(1, 6, NOW)] });
+    const out = await runDaily(deps(storage, { fetcher: f, now: () => NOW }));
+    expect(out).toMatchObject({ status: "ok", date: "2026-11-21", articles: 2 });
+    expect(f.called).toEqual(["a"]);
+  });
+
+  it("records interest keyword matches on every article (including non-AI sources) in the report and the feed", async () => {
+    const { storage } = tmpStorage();
+    const items = [feedItem(1, 1, NOW, { title: "AIエージェントの著作権ルール" }), feedItem(2, 1, NOW, { title: "新型スマートフォンの発表会" })];
+    await runDaily(deps(storage, { fetcher: fakeFetcher({ a: items }), sources: [source("a", { ai: "unreviewed" })], assessor: null }));
+    const feed = (await read(storage, STORAGE_KEYS.feed, FeedSnapshotSchema))!;
+    const hit = feed.articles.find((a) => a.title.includes("エージェント"))!;
+    expect(hit.interestMatches).toEqual([
+      { theme: "AIエージェント", keyword: "エージェント" },
+      { theme: "AI規制・著作権・制度", keyword: "著作権" },
+    ]);
+    expect(feed.articles.find((a) => a.title.includes("スマートフォン"))!.interestMatches).toBeUndefined();
+    // AI 送信が未確認の情報源でも、キーワード一致で読む候補になる
+    const report = (await read(storage, STORAGE_KEYS.report("2026-11-21"), DailyReportSchema))!;
+    expect(report.recommendations.map((r) => r.articleId)).toEqual([hit.id]);
+    // 関心テーマを変えると、前回までの記事の一致も更新される
+    const changed = { themes: [{ id: "phone", label: "スマホ", keywords: ["スマートフォン"] }] };
+    await runDaily(deps(storage, { fetcher: fakeFetcher({ a: "304" }), sources: [source("a", { ai: "unreviewed" })], assessor: null, interests: changed, now: () => NEXT_DAY }));
+    const feed2 = (await read(storage, STORAGE_KEYS.feed, FeedSnapshotSchema))!;
+    expect(feed2.articles.find((a) => a.title.includes("エージェント"))!.interestMatches).toBeUndefined();
+    expect(feed2.articles.find((a) => a.title.includes("スマートフォン"))!.interestMatches).toEqual([{ theme: "スマホ", keyword: "スマートフォン" }]);
   });
 
   it("does not re-assess articles seen on previous days; re-assesses when interests or model change", async () => {
