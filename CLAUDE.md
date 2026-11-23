@@ -36,5 +36,5 @@ terraform fmt -recursive infra && terraform -chdir=infra/app validate   # init -
 - SSR・Server Actions・API Routes 等の実行時サーバー機能を使わない。サブパスのページを増やさない。DB・常時稼働サーバーを追加しない
 - 1 日の AI 送信上限（既定 30）・読む候補上限（既定 5、埋めない）・評価キャッシュ（前提が同じなら再評価しない）を壊さない
 - Lambda のイメージ参照は Terraform（`release.auto.tfvars` の SHA → digest）だけが管理する。Web 配置で `data/` を消さない。情報源の設定変更はイメージの再発行→apply で反映
-- AWS リソースの作成・apply・destroy・公開・本番バッチ起動・Bedrock の利用手続き（同意・課金）はユーザーの確認なしに行わない
+- 承認の範囲（2026-11-23 ユーザー判断）: Web 配置・イメージ発行・バッチの手動実行・PR のマージは確認なしで進めてよい（GitHub の承認も不要）。terraform apply は plan を見せて確認し、GitHub の `apply-approval` 承認を経る。destroy・state 操作・新しい外部公開・認証の変更・Bedrock の利用手続き（同意・課金）・新しい課金の発生は確認なしに行わない
 - モデル ID・料金・提供状況は推測で書かない（公式ドキュメント・AWS Price List で確認）
