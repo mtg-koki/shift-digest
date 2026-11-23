@@ -31,12 +31,8 @@ function Recommendations({ view, marks, act, filter }: { view: Extract<FeedView,
   return (
     <section aria-labelledby="recs">
       <h2 id="recs" className="section-title">
-        今日の読む候補 <span className="muted small">（{report.date}・全媒体から）</span>
+        今日の読む候補
       </h2>
-      <p className="note">
-        すべての媒体の新着から、関心テーマに合いそうな記事を<strong>タイトル等に基づいて</strong>選んでいます。本文は読んでいません。関連度は関心との近さで、記事の重要性や正確性ではありません。
-        AI で評価するのは AI 送信の条件を確認できた情報源の記事だけで、それ以外はタイトルのキーワード一致（外部に送らない）で評価しています。
-      </p>
       {recs.length === 0 ? (
         <p className="empty">今日は関心に合いそうな候補はありませんでした。</p>
       ) : (
@@ -196,18 +192,6 @@ export function ReaderPage({
         </p>
       )}
       {feed.sources.length === 0 && <p className="notice notice-info">有効な情報源がありません。情報源の設定（利用条件の確認と有効化）を確認してください。</p>}
-      <p className="inbox-summary">
-        {since ? (
-          <span>
-            前回の閲覧（{formatJst(since)}）以降の新着 <strong>{newCount}件</strong>
-          </span>
-        ) : (
-          <span>次回から、前回の閲覧以降の新着だけを表示できます</span>
-        )}
-        <span className="muted small">
-          {feed.sources.length}媒体をまとめて表示・最終取得 {formatJst(feed.generatedAt)}
-        </span>
-      </p>
       <Recommendations view={view} marks={marks} act={act} filter={filter} />
       <XLinks />
 

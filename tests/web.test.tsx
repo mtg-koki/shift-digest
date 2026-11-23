@@ -180,7 +180,9 @@ describe("RSS reader list", () => {
     expect(out).toContain("関心テーマに一致");
     expect(out).toContain("前回以降の新着");
     // 初回の閲覧（前回なし）では新着ボタンは使えない
-    expect(out).toContain("次回から、前回の閲覧以降の新着だけを表示できます");
+    // 冒頭の説明文は出さない
+    expect(out).not.toContain("次回から、前回の閲覧以降の新着だけを表示できます");
+    expect(out).not.toContain("すべての媒体の新着から");
     // 日付の見出しと、まとめて既読
     expect(out).toContain(`class="day-heading"`);
     expect(out).toMatch(/表示中の未読 \d+件をすべて既読にする/);
@@ -188,6 +190,7 @@ describe("RSS reader list", () => {
     expect(out).toContain("X で話題を見る");
     expect(out).toContain("https://x.com/search?q=");
     expect(out).toContain("f=top");
+    expect(out).toContain(`https://x.com/search?q=${encodeURIComponent("クラウド")}&amp;f=top`);
     // AI 対象外の情報源の記事も一覧に並ぶ
     const noAi = feed.articles.find((a) => !a.aiEligible)!;
     expect(out).toContain(noAi.title.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"));
@@ -252,7 +255,7 @@ describe("RSS reader list", () => {
     const n = feed.articles.filter((a) => a.fetchedAt > since).length;
     expect(n).toBeGreaterThan(0);
     const out = html(<ReaderPage view={view} marks={emptyMarks()} act={noop} filter={emptyFilter()} onFilter={noop} since={since} />);
-    expect(out).toContain(`以降の新着 <strong>${n}件</strong>`);
+    expect(out).toContain(`前回以降の新着（${n}）`);
     expect(out).toContain(`class="badge-new"`);
   });
 
