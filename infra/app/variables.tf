@@ -114,7 +114,7 @@ variable "lambda_async_retries" {
 variable "schedule_expression" {
   description = "EventBridge Scheduler の式。タイムゾーンは schedule_timezone で解釈される"
   type        = string
-  default     = "cron(0 7 * * ? *)"
+  default     = "cron(0 7,12,18 * * ? *)"
 }
 
 variable "schedule_timezone" {
@@ -123,13 +123,13 @@ variable "schedule_timezone" {
 }
 
 variable "schedule_flexible_window_minutes" {
-  description = "Flexible time window（分）。0 なら OFF（毎朝 7:00 ちょうどに起動）。分散させたい場合のみ 1〜1440"
+  description = "Flexible time window（分）。0 なら OFF（指定時刻ちょうどに起動）。分散させたい場合のみ 1〜1440"
   type        = number
   default     = 0
 }
 
 variable "schedule_enabled" {
-  description = "false で日次実行を止める（関数・データは残る）"
+  description = "false で定期実行を止める（関数・データは残る）"
   type        = bool
   default     = true
 }

@@ -119,3 +119,11 @@ table.sources { border-collapse: collapse; width: 100%; font-size: 14px; backgro
 table.sources th, table.sources td { border-bottom: 1px solid var(--line); padding: 6px 8px; text-align: left; vertical-align: top; }
 table.sources th { color: var(--muted); font-weight: 600; white-space: nowrap; }
 .error-text { color: var(--err-fg); }
+
+/* 前回以降の新着・関心テーマ・日付見出し */
+.badge-new { font-weight: 700; font-size: 0.75rem; padding: 0 6px; border-radius: 4px; background: var(--fg); color: var(--bg); }
+.interest { font-size: 0.85rem; }
+.inbox-summary { margin: 8px 0 4px; display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; }
+.day-heading { font-size: 0.95rem; margin: 18px 0 2px; padding-bottom: 4px; border-bottom: 2px solid var(--line); }
+.list-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+button.chip:disabled { opacity: 0.5; cursor: not-allowed; }

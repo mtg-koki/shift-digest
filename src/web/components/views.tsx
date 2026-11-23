@@ -6,7 +6,7 @@ import { emptyMarks, safeHref, type MarkAction, type Marks } from "../marks";
 
 /**
  * 画面の URL。静的配信（index.html 1 枚）のため、表示内容はクエリで表す。
- *   /                     新着順の一覧（RSS リーダー）と今日の読む候補。&source= &category= &unread=1 &hidden=1 で絞り込み
+ *   /                     新着順の一覧（RSS リーダー）と今日の読む候補。&category= &new=1 &interest=1 &unread=1 &hidden=1 で絞り込み
  *   /?view=sources        情報源の状態（最終正常取得・エラー・AI 評価の対象か）と手動リンク
  *   /?view=saved          保存した記事（この端末のブラウザー内）
  *   /?view=archive        日別の記録の一覧
@@ -60,14 +60,20 @@ export function CategoryFilter({ date, active }: { date: string | null; active: 
   );
 }
 
-function Meta({ a }: { a: Article }) {
+function Meta({ a, isNew = false }: { a: Article; isNew?: boolean }) {
   return (
     <div className="card-meta">
+      {isNew && <span className="badge-new">NEW</span>}
       <span className={`badge badge-${a.category}`}>{CATEGORY_LABELS[a.category]}</span>
       <span>{a.sourceName}</span>
       {a.publishedAt && (
         <span>
           公開 <time dateTime={a.publishedAt}>{formatJst(a.publishedAt)}</time>
+        </span>
+      )}
+      {a.interestMatches && a.interestMatches.length > 0 && (
+        <span className="interest" title={`関心テーマ: ${a.interestMatches.map((m) => m.theme).join("、")}（キーワード一致）`}>
+          関心: {a.interestMatches.map((m) => m.keyword).join("・")}
         </span>
       )}
     </div>
@@ -130,10 +136,10 @@ export function RecommendationCard({ a, rank, date, marks, act }: { a: Article; 
   );
 }
 
-export function ArticleRow({ a, date, marks, act, dupTitle }: { a: Article; date: string; marks: Marks; act: Act; dupTitle?: string }) {
+export function ArticleRow({ a, date, marks, act, dupTitle, isNew }: { a: Article; date: string; marks: Marks; act: Act; dupTitle?: string; isNew?: boolean }) {
   return (
     <li className={marks.read[a.id] ? "row row-read" : "row"}>
-      <Meta a={a} />
+      <Meta a={a} isNew={isNew} />
       <div className="row-title">
         <ArticleLink a={a} act={act} />
         {marks.read[a.id] && <span className="muted">（既読）</span>}

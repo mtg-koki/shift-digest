@@ -21,10 +21,11 @@ import {
   type Usage,
 } from "../shared/schema";
 import type { Storage } from "../shared/storage";
+import { titleKey } from "../shared/url";
 import { AssessRejected, parseAssessments, PROMPT_VERSION, type Assessor } from "./assess";
 import { defaultCategory, interestsHash, sourcePolicy, type BatchEnv, type Interests, type ManualLink, type Source } from "./config";
 import type { FeedFetcher } from "./feed";
-import { dedupe, displayCategory, inWindow, rankRecommendations, ruleAssessment, selectForAssessment, toCandidate, type Candidate } from "./select";
+import { dedupe, displayCategory, inWindow, keywordMatches, rankRecommendations, ruleAssessment, selectForAssessment, toCandidate, type Candidate } from "./select";
 
 export type RunOutcome =
   | { status: "ok" | "partial"; date: string; articles: number; recommendations: number; usage: Usage }
@@ -84,7 +85,8 @@ export function assessmentKey(c: Pick<Candidate, "titleKey">, interests: Interes
 }
 
 /**
- * 日次バッチ本体。
+ * バッチ本体（1 日に複数回実行してよい）。
+ * 毎回、取得して一覧（feed.json）を更新し、当日分（読む候補・その日の新着）は同じ日の前回分に追記して作り直す。
  * 書き込み順: state（評価キャッシュ） → report → 読み戻し検証 → index → last-run
  * index（latest 参照）は report の検証後にしか更新しないため、途中で失敗しても前回の正常データが表示され続ける。
  */
@@ -122,12 +124,10 @@ async function runLocked(deps: RunDeps, now: Date, date: string, log: NonNullabl
   // 実行時間の上限は実時計で測る（now は日付計算用で、テストでは固定値になる）
   const deadline = Date.now() + env.BATCH_MAX_RUNTIME_MS;
 
-  // 1. 当日分が既にあれば何もしない（再実行の冪等性）。force 時のみ作り直す（評価はキャッシュを再利用）
-  if ((await storage.getText(STORAGE_KEYS.report(date))) !== null && !deps.force) {
-    log("report already exists; skipping", { date });
-    return { status: "skipped", date, reason: "already-exists" };
-  }
+  // 1. 同じ日に既に実行していれば、その日の新着を引き継ぐ（条件付き GET で 304 の情報源の記事も当日分に残す）。
+  //    同じ記事は評価キャッシュを使うため、何度実行しても AI 呼び出しは増えず、日次上限も守られる
   const state = await loadState(storage, log);
+  const prevReport = await readJson(storage, STORAGE_KEYS.report(date), DailyReportSchema).catch(() => null);
 
   // 2. 情報源ごとの処理可否（未確認・ユーザー確認待ちは許可と扱わない）
   const policies = new Map(deps.sources.map((s) => [s.id, sourcePolicy(s)]));
@@ -139,6 +139,7 @@ async function runLocked(deps: RunDeps, now: Date, date: string, log: NonNullabl
   }
 
   // 3. 取得（一部失敗は許容）。条件付き GET で変更がなければ本文を受け取らない。取得間隔の下限があれば守る
+  //    force: 条件付き GET と取得間隔を使わずに全件取り直す
   const nowIso = now.toISOString();
   const sourceResults: SourceResult[] = [];
   const lastResult = new Map<string, SourceStatus["lastResult"]>();
@@ -172,7 +173,6 @@ async function runLocked(deps: RunDeps, now: Date, date: string, log: NonNullabl
           userAgent: env.FEED_USER_AGENT,
           allowFileFeeds: env.ALLOW_FILE_FEEDS,
         },
-        // 当日分を作り直すとき（force）は全件を取り直す
         deps.force ? undefined : { etag: prev.etag, lastModified: prev.lastModified },
       );
     }),
@@ -217,8 +217,29 @@ async function runLocked(deps: RunDeps, now: Date, date: string, log: NonNullabl
     throw new Error("all sources failed");
   }
 
-  // 4. 重複除去（保守的）。今日初めて見つかった記事だけを新着とする（過去日に見つかった記事は再掲・再評価しない）
-  const fresh = dedupe(candidates).filter((c) => {
+  // 4. 同じ日の前回の新着を引き継ぐ（取得対象から外れた情報源の記事は除く）
+  const fetchable = new Map(targets.map((s) => [s.id, s]));
+  const prevFetchedAt = new Map<string, string>();
+  const carried: Candidate[] = [];
+  for (const a of prevReport?.articles ?? []) {
+    const src = fetchable.get(a.sourceId);
+    if (!src) continue;
+    prevFetchedAt.set(a.id, a.fetchedAt);
+    carried.push({
+      id: a.id,
+      normalizedUrl: state.items[a.id]?.url ?? a.url,
+      url: a.url,
+      title: a.title,
+      titleKey: titleKey(a.title),
+      publishedAt: a.publishedAt,
+      feedCategories: a.feedCategories,
+      source: src,
+      aiEligible: policies.get(src.id)!.ai,
+    });
+  }
+
+  // 5. 重複除去（保守的）。今日初めて見つかった記事だけを新着とする（過去日に見つかった記事は再掲・再評価しない）
+  const fresh = dedupe([...candidates, ...carried]).filter((c) => {
     const seen = state.items[c.id];
     return !seen || seen.firstSeenDate === date;
   });
@@ -238,20 +259,20 @@ async function runLocked(deps: RunDeps, now: Date, date: string, log: NonNullabl
   // 読む候補・AI 評価の対象は対象期間内（LOOKBACK_HOURS）の新着だけ。一覧（feed.json）は保存期間内のすべて
   const recent = fresh.filter((c) => inWindow(c.publishedAt, now, env.LOOKBACK_HOURS, env.INCLUDE_UNDATED));
 
-  // 5. 評価（AI 送信が許可された情報源だけ。評価済みで前提が同じならキャッシュを使う）
-  const assessorInfo = deps.assessor?.info ?? RULES;
-  const keyOf = (c: Candidate) => assessmentKey(c, interests, assessorInfo);
+  // 6. 評価。評価済みで前提が同じならキャッシュを使う
+  //    - AI: AI 送信が許可された情報源の記事だけ
+  //    - ルールベース（キーワード一致。外部に送らない）: AI を使わないとき、および AI 送信が許可されていない情報源の記事
+  const infoFor = (c: Candidate): AssessorInfo => (deps.assessor && c.aiEligible ? deps.assessor.info : RULES);
+  const keyOf = (c: Candidate) => assessmentKey(c, interests, infoFor(c));
   const needs = (c: Candidate) => state.items[c.id]?.assessmentKey !== keyOf(c);
   const usage: Usage = { ...emptyUsage(), ...state.usageByDate[date] };
   const runUsage = emptyUsage();
 
-  if (!deps.assessor) {
-    // ルールベース（AI 不使用）
-    for (const c of recent.filter((x) => x.aiEligible && !x.duplicateOf && needs(x))) {
-      state.items[c.id]!.assessment = { ...ruleAssessment(c, interests, now.toISOString()), assessor: RULES };
-      state.items[c.id]!.assessmentKey = keyOf(c);
-    }
-  } else {
+  for (const c of recent.filter((x) => !x.duplicateOf && infoFor(x) === RULES && needs(x))) {
+    state.items[c.id]!.assessment = { ...ruleAssessment(c, interests, now.toISOString()), assessor: RULES };
+    state.items[c.id]!.assessmentKey = keyOf(c);
+  }
+  if (deps.assessor) {
     const remaining = Math.max(0, env.MAX_AI_ARTICLES_PER_DAY - usage.aiArticles);
     const selected = selectForAssessment(recent, {
       interests,
@@ -314,7 +335,7 @@ async function runLocked(deps: RunDeps, now: Date, date: string, log: NonNullabl
   // 評価結果を先に保存（後続が失敗しても再実行で再評価しない）
   await storage.putText(STORAGE_KEYS.state, json(StateSchema.parse(state)));
 
-  // 6. 新着一覧と今日の読む候補
+  // 7. 新着一覧と今日の読む候補
   const fetchedAt = now.toISOString();
   const withAssessment = fresh.map((c) => {
     const s = state.items[c.id];
@@ -337,11 +358,12 @@ async function runLocked(deps: RunDeps, now: Date, date: string, log: NonNullabl
     sourceId: c.source.id,
     sourceName: c.source.name,
     publishedAt: c.publishedAt,
-    fetchedAt,
+    fetchedAt: prevFetchedAt.get(c.id) ?? fetchedAt,
     feedCategories: c.feedCategories,
     category: displayCategory(c, assessment),
     ...(c.duplicateOf ? { duplicateOf: c.duplicateOf } : {}),
     aiEligible: c.aiEligible,
+    ...interestField(c.title, interests),
     ...(assessment ? { assessment } : {}),
   }));
 
@@ -358,19 +380,19 @@ async function runLocked(deps: RunDeps, now: Date, date: string, log: NonNullabl
     stats: { fetchedItems, newArticles: articles.length, usage: runUsage },
   });
 
-  // 7. report を保存し、読み戻して検証
+  // 8. report を保存し、読み戻して検証
   const reportKey = STORAGE_KEYS.report(date);
   await storage.putText(reportKey, json(report));
   const verify = await readJson(storage, reportKey, DailyReportSchema);
   if (!verify || verify.articles.length !== report.articles.length) throw new Error("report verification failed");
 
-  // 8. 一覧（feed.json）: 前回の一覧に今日の新着を足し、保存期間・件数・有効な情報源で絞る
+  // 9. 一覧（feed.json）: 前回の一覧に今日の新着を足し、保存期間・件数・有効な情報源で絞る
   const feed = await buildFeed(deps, storage, articles, sourceResults, lastResult, state, now);
   await storage.putText(STORAGE_KEYS.feed, json(feed));
   const verifyFeed = await readJson(storage, STORAGE_KEYS.feed, FeedSnapshotSchema);
   if (!verifyFeed || verifyFeed.articles.length !== feed.articles.length) throw new Error("feed verification failed");
 
-  // 9. 最後に latest 参照（index）を更新（旧形式の index は引き継がない）
+  // 10. 最後に latest 参照（index）を更新（旧形式の index は引き継がない）
   const prev = await readJson(storage, STORAGE_KEYS.index, DigestIndexSchema).catch(() => null);
   const dates = (prev?.dates ?? []).filter((d) => d.date !== date);
   dates.push({ date, articleCount: articles.length, recommendationCount: ranked.length, status, generatedAt: report.generatedAt });
@@ -409,7 +431,10 @@ async function buildFeed(
     .map((a) => {
       const src = fetchable.get(a.sourceId)!;
       // 情報源の設定（分類・AI 送信の扱い）の変更は、前回までの記事にも反映する
-      return { ...a, category: a.assessment?.category ?? defaultCategory(src), aiEligible: sourcePolicy(src).ai };
+      // 関心テーマの一致も、テーマの変更を前回までの記事に反映する
+      const rest = { ...a };
+      delete rest.interestMatches;
+      return { ...rest, category: a.assessment?.category ?? defaultCategory(src), aiEligible: sourcePolicy(src).ai, ...interestField(a.title, deps.interests) };
     })
     .sort((a, b) => sortKey(b).localeCompare(sortKey(a)) || a.id.localeCompare(b.id))
     .slice(0, env.FEED_MAX_ARTICLES);
@@ -441,6 +466,12 @@ async function buildFeed(
     sources,
     manualLinks: (deps.manualLinks ?? []).map((m) => ({ id: m.id, name: m.name, url: m.url, categories: m.categories, note: m.note })),
   });
+}
+
+/** タイトルに含まれる関心キーワード（テーマごとに 1 語。端末内のキーワード一致で、外部には送らない） */
+function interestField(title: string, interests: Interests): Pick<Article, "interestMatches"> {
+  const m = keywordMatches(title, interests);
+  return m.length ? { interestMatches: m.map((x) => ({ theme: x.themeLabel, keyword: x.keyword })) } : {};
 }
 
 function pruneState(state: State, date: string, retentionDays: number) {

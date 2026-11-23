@@ -6,6 +6,7 @@ import { DigestReader, type ArchiveView, type FeedView, type ReportView } from "
 import { filterFromQuery, filterToQuery, type ReaderFilter } from "../filter";
 import { HttpStore } from "../http-store";
 import { applyMark, emptyMarks, loadMarks, MARKS_KEY, storeMarks, type MarkAction, type Marks } from "../marks";
+import { recordVisit } from "../visit";
 import { ReaderPage, SourcesPage } from "./reader";
 import { ArchivePage, ReportPage, SavedPage, parseCategory } from "./views";
 
@@ -35,11 +36,14 @@ export function DigestApp() {
   const [marks, setMarks] = useState<Marks>(emptyMarks);
   const [showHidden, setShowHidden] = useState(false);
   const [storageOk, setStorageOk] = useState(true);
+  // 前回の閲覧日時（「前回以降の新着」の基準）。ページを開いたときに 1 回だけ記録する
+  const [since, setSince] = useState<string | null>(null);
   const [filter, setFilter] = useState<ReaderFilter>(() => filterFromQuery(new URLSearchParams(sp.toString())));
   const key = view === "archive" || view === "saved" || view === "sources" ? view : date ? `date:${date}` : "feed";
 
   useEffect(() => {
     setMarks(loadMarks());
+    setSince(recordVisit());
     // 他のタブでの変更を反映
     const onStorage = (e: StorageEvent) => {
       if (e.key === MARKS_KEY) setMarks(loadMarks());
@@ -104,7 +108,7 @@ export function DigestApp() {
     ) : (
       <>
         {warn}
-        <ReaderPage view={d.view} marks={marks} act={act} filter={filter} onFilter={onFilter} />
+        <ReaderPage view={d.view} marks={marks} act={act} filter={filter} onFilter={onFilter} since={since} />
       </>
     );
   return (

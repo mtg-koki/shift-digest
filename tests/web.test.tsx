@@ -5,7 +5,9 @@ import { DailyReportSchema, FeedSnapshotSchema, STORAGE_KEYS } from "../src/shar
 import { DigestReader } from "../src/web/data";
 import { ArchivePage, ReportPage, SavedPage } from "../src/web/components/views";
 import { ReaderPage, SourcesPage } from "../src/web/components/reader";
-import { emptyFilter, filterArticles, filterFromQuery, filterToQuery } from "../src/web/filter";
+import { emptyFilter, filterArticles, filterFromQuery, filterToQuery, isNewSince } from "../src/web/filter";
+import { dayHeading } from "../src/web/components/reader";
+import { nextVisit, parseVisit, SAME_VISIT_MS } from "../src/web/visit";
 import { applyMark, emptyMarks, parseMarks, safeHref } from "../src/web/marks";
 import { tmpStorage } from "./helpers";
 
@@ -168,11 +170,20 @@ describe("RSS reader list", () => {
     expect(out).toContain("今日の読む候補");
     expect(out).toContain("取得できなかった情報源があります");
     expect(out).toContain("出典");
-    // 絞り込みはボタン（検索欄・選択肢なし）
+    // 絞り込みはカテゴリと表示切り替えのボタンだけ（検索欄・選択肢・媒体の絞り込みなし）
     expect(out).toContain(`aria-pressed="true"`);
     expect(out).toContain(">クラウド</button>");
     expect(out).not.toContain(`type="search"`);
     expect(out).not.toContain("<select");
+    expect(out).not.toContain("全媒体</button>");
+    expect(out).not.toContain("媒体で絞り込み");
+    expect(out).toContain("関心テーマに一致");
+    expect(out).toContain("前回以降の新着");
+    // 初回の閲覧（前回なし）では新着ボタンは使えない
+    expect(out).toContain("次回から、前回の閲覧以降の新着だけを表示できます");
+    // 日付の見出しと、まとめて既読
+    expect(out).toContain(`class="day-heading"`);
+    expect(out).toMatch(/表示中の未読 \d+件をすべて既読にする/);
     // X はテーマごとの検索リンクだけ（データは取得しない）
     expect(out).toContain("X で話題を見る");
     expect(out).toContain("https://x.com/search?q=");
@@ -183,13 +194,23 @@ describe("RSS reader list", () => {
     expect(out).not.toContain("<script>");
   });
 
-  it("filters by source, category, keyword (AND, width/case-insensitive), unread and hidden", () => {
+  it("filters by category, new-since-last-visit, interest match, unread and hidden", () => {
     const feed = FeedSnapshotSchema.parse(JSON.parse(sampleFeed));
     const all = feed.articles;
     const m = emptyMarks();
-    const src = all[0]!.sourceId;
-    expect(filterArticles(all, { ...emptyFilter(), source: src }, m).every((a) => a.sourceId === src)).toBe(true);
     expect(filterArticles(all, { ...emptyFilter(), category: "politics" }, m).every((a) => a.category === "politics")).toBe(true);
+    // 前回の閲覧より後に取得した記事だけ。前回なし（初回）は 0 件
+    const times = [...new Set(all.map((a) => a.fetchedAt))].sort();
+    const since = times[0]!;
+    const newer = filterArticles(all, { ...emptyFilter(), newOnly: true }, m, since);
+    expect(newer.every((a) => a.fetchedAt > since)).toBe(true);
+    expect(filterArticles(all, { ...emptyFilter(), newOnly: true }, m, null)).toHaveLength(0);
+    expect(isNewSince(all[0]!, null)).toBe(false);
+    const withInterest = [{ ...all[0]!, interestMatches: [{ theme: "t", keyword: "k" }] }, all[1]!];
+    expect(filterArticles(withInterest, { ...emptyFilter(), interestOnly: true }, m).map((a) => a.id)).toEqual([all[0]!.id]);
+    // まとめて既読
+    const bulk = applyMark(m, { type: "readMany", ids: [all[0]!.id, all[1]!.id] });
+    expect(Object.keys(bulk.read).sort()).toEqual([all[0]!.id, all[1]!.id].sort());
     const read = applyMark(m, { type: "read", id: all[0]!.id });
     expect(filterArticles(all, { ...emptyFilter(), unreadOnly: true }, read)).toHaveLength(all.length - 1);
     const hidden = applyMark(m, { type: "hide", id: all[0]!.id });
@@ -198,9 +219,41 @@ describe("RSS reader list", () => {
   });
 
   it("round-trips filters through the URL and rejects invalid values", () => {
-    const f = { ...emptyFilter(), source: "digital", category: "politics" as const, unreadOnly: true };
+    const f = { ...emptyFilter(), category: "politics" as const, newOnly: true, interestOnly: true, unreadOnly: true };
     expect(filterFromQuery(new URL("https://x" + filterToQuery(f)).searchParams)).toEqual(f);
-    expect(filterFromQuery(new URLSearchParams("source=../x&category=evil"))).toEqual(emptyFilter());
+    // 旧 URL の媒体指定は無視する
+    expect(filterFromQuery(new URLSearchParams("source=bbc-japanese&category=evil"))).toEqual(emptyFilter());
+  });
+
+  it("tracks the previous visit (30-minute reopenings count as the same visit) and parses it defensively", () => {
+    const t0 = new Date("2026-11-23T00:00:00.000Z");
+    const v1 = nextVisit(null, t0);
+    expect(v1).toEqual({ last: t0.toISOString(), prev: null });
+    const soon = new Date(t0.getTime() + SAME_VISIT_MS - 1000);
+    expect(nextVisit(v1, soon)).toEqual({ last: soon.toISOString(), prev: null });
+    const later = new Date(t0.getTime() + 5 * 3600_000);
+    expect(nextVisit(v1, later)).toEqual({ last: later.toISOString(), prev: t0.toISOString() });
+    expect(parseVisit("{broken")).toBeNull();
+    expect(parseVisit(JSON.stringify({ last: "<script>", prev: 1 }))).toBeNull();
+    expect(parseVisit(JSON.stringify({ last: t0.toISOString(), prev: "x" }))).toEqual({ last: t0.toISOString(), prev: null });
+  });
+
+  it("labels day headings in JST", () => {
+    expect(dayHeading("2026-11-23", "2026-11-23")).toBe("今日 11月23日（月）");
+    expect(dayHeading("2026-11-22", "2026-11-23")).toBe("昨日 11月22日（日）");
+    expect(dayHeading("2026-11-20", "2026-11-23")).toBe("11月20日（金）");
+  });
+
+  it("shows NEW badges and the new-article count after a previous visit", async () => {
+    const view = await feedView();
+    const feed = FeedSnapshotSchema.parse(JSON.parse(sampleFeed));
+    // サンプルの取得日時より 1 時間前に前回閲覧した想定
+    const since = new Date(Date.parse(feed.articles[0]!.fetchedAt) - 3600_000).toISOString();
+    const n = feed.articles.filter((a) => a.fetchedAt > since).length;
+    expect(n).toBeGreaterThan(0);
+    const out = html(<ReaderPage view={view} marks={emptyMarks()} act={noop} filter={emptyFilter()} onFilter={noop} since={since} />);
+    expect(out).toContain(`以降の新着 <strong>${n}件</strong>`);
+    expect(out).toContain(`class="badge-new"`);
   });
 
   it("shows source status (last success, error, AI target) and manual links", async () => {

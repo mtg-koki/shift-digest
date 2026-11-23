@@ -18,7 +18,7 @@ export async function handleEvent(
   const force = event?.force === true;
   const outcome = await run({ force, maxRuntimeMs: remainingMs - SAFETY_MARGIN_MS });
   // failed は例外にして Lambda の失敗として扱う（非同期呼び出しの再試行・失敗通知の対象にする）。
-  // skipped（当日分作成済み・別実行中）と ok / partial（0 件を含む）は正常終了。
+  // skipped（別実行中）と ok / partial（0 件を含む）は正常終了。
   if (outcome.status === "failed") throw new Error(`batch failed: ${outcome.reason}`);
   return outcome;
 }
